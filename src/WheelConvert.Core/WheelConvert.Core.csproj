@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    WheelConvert.Core: contracts and pure logic. MUST stay cross-platform (net8.0, no Windows APIs,
+    no NuGet packages) so it can be built and tested anywhere. Owned by WP-01.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>WheelConvert.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="WheelConvert.Core.Tests" />
+  </ItemGroup>
+</Project>

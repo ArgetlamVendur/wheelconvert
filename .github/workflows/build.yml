@@ -1,0 +1,88 @@
+name: build
+
+# Runs on every push and pull request. This is the first place the WPF app is ever compiled
+# (the base was written without Windows). Paste a failing log to any agent to fix it.
+# Converter test projects (tests/WheelConvert.Converters.*.Tests) are picked up automatically when they exist.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Safety grep (ADR-003, CONTRACTS C9)
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem -Path src -Recurse -Include *.cs, *.xaml)
+          $hits = @(
+            $files | Select-String -Pattern 'DragDropEffects\.(Move|All)'
+            $files | Select-String -Pattern 'UseShellExecute\s*=\s*true'
+          ) | Where-Object { $_ }
+          if ($hits.Count -gt 0) {
+            foreach ($h in $hits) { Write-Host "::error file=$($h.Path),line=$($h.LineNumber)::$($h.Line.Trim())" }
+            exit 1
+          }
+          Write-Host "Safety grep passed ($($files.Count) files)."
+
+      - name: Restore
+        run: dotnet restore WheelConvert.sln
+
+      - name: Build
+        run: dotnet build WheelConvert.sln -c Release --no-restore
+
+      - name: Core tests
+        run: dotnet run --project tests/WheelConvert.Core.Tests -c Release --no-build
+
+      - name: Converter tests (if any)
+        shell: pwsh
+        run: |
+          $projects = @(Get-ChildItem -Path tests -Recurse -Filter 'WheelConvert.Converters.*.Tests.csproj')
+          if ($projects.Count -eq 0) { Write-Host "No converter test projects yet."; exit 0 }
+          foreach ($p in $projects) {
+            dotnet test $p.FullName -c Release
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Publish app (framework-dependent, single file)
+        run: dotnet publish src/WheelConvert.App -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WheelConvert-win-x64
+          path: publish/
+          retention-days: 14
+
+  core-linux:
+    # Proves Core and converters stay cross-platform (ADR-001).
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build Core + converters
+        run: |
+          for p in src/WheelConvert.Core src/WheelConvert.Converters.*; do dotnet build "$p" -c Release; done
+      - name: Core tests
+        run: dotnet run --project tests/WheelConvert.Core.Tests -c Release
+      - name: Converter tests (if any)
+        run: |
+          shopt -s nullglob
+          for p in tests/WheelConvert.Converters.*.Tests/*.csproj; do dotnet test "$p" -c Release; done

@@ -1,0 +1,17 @@
+<Project>
+  <!-- Applies to every project in the repo. Changing this affects all modules: needs user approval (AGENTS.md §4). -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <Deterministic>true</Deterministic>
+    <!-- CA1716 (VB keyword clashes) and CA1711 (type-name suffixes) are naming style only; not relevant to a C#-only app. -->
+    <NoWarn>$(NoWarn);CA1716;CA1711</NoWarn>
+    <Version>0.1.0</Version>
+    <Authors>WheelConvert contributors</Authors>
+    <Copyright>MIT licence</Copyright>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    WPF shell. Windows-only. Builds only on Windows or in CI (.github/workflows/build.yml).
+    Ownership of individual folders: see docs/modules/ (each WP lists the files it owns).
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>WheelConvert.App</RootNamespace>
+    <AssemblyName>WheelConvert</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <!-- ADR-007: WinForms only for NotifyIcon. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <!-- Required by the [LibraryImport] source generator used in Interop/ (SYSLIB1062 otherwise). No hand-written unsafe code. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!--
+      The App could not be compiled where the base was written (no Windows). Until the first green CI build,
+      code-analysis findings are warnings, not errors, so a style rule can't block the first build.
+      Compiler warnings still fail the build. WP-11 sets this back to true once CI is green.
+    -->
+    <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Remove implicit WinForms global usings so WPF types (Application, DragEventArgs…) aren't ambiguous. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Tray icon (WP-05 creates the file). Conditional so the build works before it exists. -->
+    <EmbeddedResource Include="..\..\assets\wheelconvert.ico" Link="Assets\wheelconvert.ico" LogicalName="WheelConvert.App.wheelconvert.ico" Condition="Exists('..\..\assets\wheelconvert.ico')" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WheelConvert.Core\WheelConvert.Core.csproj" />
+    <ProjectReference Include="..\WheelConvert.Converters.Image\WheelConvert.Converters.Image.csproj" />
+    <ProjectReference Include="..\WheelConvert.Converters.Media\WheelConvert.Converters.Media.csproj" />
+    <ProjectReference Include="..\WheelConvert.Converters.Pdf\WheelConvert.Converters.Pdf.csproj" />
+    <ProjectReference Include="..\WheelConvert.Converters.Qr\WheelConvert.Converters.Qr.csproj" />
+  </ItemGroup>
+</Project>

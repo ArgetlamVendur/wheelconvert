@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- WP-10 QR reader (images only, ADR-009). Spec: docs/modules/WP-10-qr-reader.md -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>WheelConvert.Converters.Qr</RootNamespace>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WheelConvert.Core\WheelConvert.Core.csproj" />
+  </ItemGroup>
+  <!--
+    WP-10 adds (latest stable, record in ADR-010):
+      ZXing.Net            (decoding)
+      Magick.NET-Q8-AnyCPU (load any image format into raw pixels for ZXing; same version as WP-06)
+  -->
+</Project>

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- WP-08 PDF operations + page renderer. Spec: docs/modules/WP-08-pdf-operations.md -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>WheelConvert.Converters.Pdf</RootNamespace>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WheelConvert.Core\WheelConvert.Core.csproj" />
+  </ItemGroup>
+  <!--
+    WP-08 adds (latest stable, record in ADR-010):
+      PDFsharp      (edit: split, rotate, reorder)
+      PDFtoImage    (render: thumbnails, pdf.to-images)
+  -->
+</Project>

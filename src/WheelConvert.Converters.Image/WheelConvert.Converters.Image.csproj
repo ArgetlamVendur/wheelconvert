@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- WP-06 image converter. Spec: docs/modules/WP-06-image-converter.md -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>WheelConvert.Converters.Image</RootNamespace>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WheelConvert.Core\WheelConvert.Core.csproj" />
+  </ItemGroup>
+  <!-- WP-06 adds: <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="(latest stable, record in ADR-010)" /> -->
+</Project>

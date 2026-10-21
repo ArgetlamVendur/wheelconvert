@@ -1,0 +1,26 @@
+<Window x:Class="WheelConvert.App.Wheel.WheelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="WheelConvert"
+        Width="260" Height="260"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        ResizeMode="NoResize"
+        AllowDrop="True">
+    <!--
+      STUB: WP-04 (docs/modules/WP-04-wheel-window.md).
+      ADR-003 / AGENTS guardrails: every pixel that should accept drops needs alpha >= 1, and the window
+      must never take focus (WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW set in code-behind).
+    -->
+    <Grid>
+        <Ellipse Fill="#CC202020" Stroke="#66FFFFFF" StrokeThickness="1" />
+        <Canvas x:Name="SegmentCanvas" />
+        <TextBlock x:Name="CenterLabel"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Foreground="White" FontSize="14" Text="" />
+    </Grid>
+</Window>

@@ -1,0 +1,24 @@
+# .NET / Visual Studio
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userprefs
+*.rsuser
+[Dd]ebug/
+[Rr]elease/
+publish/
+*.log
+TestResults/
+
+# Editors / agents
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Never commit secrets or signing certs
+*.pfx
+*.snk
+.env
