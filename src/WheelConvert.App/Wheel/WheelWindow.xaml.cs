@@ -136,7 +136,7 @@ public partial class WheelWindow : Window, IWheelView
     private void PlaceAt(ScreenPoint point)
     {
         var hwnd = new WindowInteropHelper(this).EnsureHandle();
-        var monitor = NativeMethods.MonitorFromPoint(new NativeMethods.POINT { X = point.X, Y = point.Y }, NativeMethods.MONITOR_DEFAULTTONEAREST);
+        var monitor = NativeMethods.MonitorFromPoint(new NativeMethods.POINT { x = point.X, y = point.Y }, NativeMethods.MONITOR_DEFAULTTONEAREST);
 
         var dpi = NativeMethods.GetDpiForMonitor(monitor, NativeMethods.MDT_EFFECTIVE_DPI, out var dpiX, out _) == 0 && dpiX > 0
             ? dpiX

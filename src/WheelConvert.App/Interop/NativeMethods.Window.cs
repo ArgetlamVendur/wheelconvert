@@ -67,17 +67,6 @@ internal static partial class NativeMethods
     [LibraryImport("shcore.dll")]
     internal static partial int GetDpiForMonitor(nint hmonitor, int dpiType, out uint dpiX, out uint dpiY);
 
-    /// <summary>https://learn.microsoft.com/windows/win32/api/windef/ns-windef-point</summary>
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct POINT
-    {
-        /// <summary>LONG x.</summary>
-        public int X;
-
-        /// <summary>LONG y.</summary>
-        public int Y;
-    }
-
     /// <summary>https://learn.microsoft.com/windows/win32/api/windef/ns-windef-rect</summary>
     [StructLayout(LayoutKind.Sequential)]
     internal struct RECT
