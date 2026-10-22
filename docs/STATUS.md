@@ -6,7 +6,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 |---|---|---|---|---|---|---|
 | 01 | Core | DONE | base | Claude ×2 (independent) | — | Built + 64 tests pass on Linux; reviews: docs/reviews/2026-10-20-cp1-core.md, -cp2-final-audit.md |
 | 02 | Shift-drag trigger | TODO | Claude Code | Antigravity | | Highest risk; hotkey is the fallback |
-| 03 | Hotkey trigger | IN PROGRESS (Antigravity) | Antigravity | Claude Code | wp-03-hotkey | |
+| 03 | Hotkey trigger | REVIEW | Antigravity | Claude Code | wp-03-hotkey | Parser pure + 34 tests pass; message-only window; GetCursorPos |
 | 04 | Wheel window | TODO | Claude Code | Antigravity | | File-safety critical |
 | 05 | Tray + settings | TODO | Antigravity | Claude Code | | |
 | 06 | Image converter | TODO | Antigravity | Claude Code | | First real conversion |
