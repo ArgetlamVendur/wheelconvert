@@ -2,10 +2,13 @@ using System.Threading;
 using System.Windows;
 using WheelConvert.App.Composition;
 
+// The app exposes no API to other .NET languages.
+[assembly: CLSCompliant(false)]
+
 namespace WheelConvert.App;
 
 /// <summary>Entry point. Owned by WP-11. Single instance, then hands over to the composition root.</summary>
-public partial class App : Application
+public sealed partial class App : Application, IDisposable
 {
     private const string MutexName = @"Local\WheelConvert.SingleInstance";
     private Mutex? _singleInstance;
@@ -32,12 +35,18 @@ public partial class App : Application
     {
         // Blocking here is acceptable: the app is exiting and the queue cancels running jobs.
         _host?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        Dispose();
+        base.OnExit(e);
+    }
+
+    /// <summary>Releases the single-instance mutex. Must run on the UI thread, which acquired it.</summary>
+    public void Dispose()
+    {
         if (_singleInstance is not null)
         {
             _singleInstance.ReleaseMutex();
             _singleInstance.Dispose();
+            _singleInstance = null;
         }
-
-        base.OnExit(e);
     }
 }
