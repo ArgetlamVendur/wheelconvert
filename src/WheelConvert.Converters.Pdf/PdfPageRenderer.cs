@@ -2,14 +2,33 @@ using WheelConvert.Core.Contracts;
 
 namespace WheelConvert.Converters.Pdf;
 
-/// <summary>STUB: WP-08. Renders pages for the reorder window (WP-09) and pdf.to-images. Must be thread-safe.</summary>
+/// <summary>
+/// Renders pages for the reorder window (WP-09). Thread-safe: every call is serialised through <see cref="Pdfium"/>,
+/// which all instances share.
+/// </summary>
 public sealed class PdfPageRenderer : IPdfPageRenderer
 {
-    // TODO(WP-08): PDFtoImage page count. Encrypted → PdfPasswordProtectedException, unreadable → InvalidDataException.
-    public Task<int> GetPageCountAsync(string pdfPath, CancellationToken cancellationToken) =>
-        Task.FromException<int>(new NotSupportedException("PDF rendering is not implemented yet (WP-08)."));
+    public Task<int> GetPageCountAsync(string pdfPath, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(pdfPath);
+        if (!PdfiumPlatform.IsSupported)
+        {
+            throw new PlatformNotSupportedException("PDF rendering needs Windows, Linux or macOS.");
+        }
 
-    // TODO(WP-08): render with PDFtoImage, longest side ≤ maxPixels, encode PNG. Serialise PDFium calls.
-    public Task<byte[]> RenderPagePngAsync(string pdfPath, int pageIndex, int maxPixels, CancellationToken cancellationToken) =>
-        Task.FromException<byte[]>(new NotSupportedException("PDF rendering is not implemented yet (WP-08)."));
+        return Pdfium.GetPageCountAsync(pdfPath, cancellationToken);
+    }
+
+    public Task<byte[]> RenderPagePngAsync(string pdfPath, int pageIndex, int maxPixels, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(pdfPath);
+        ArgumentOutOfRangeException.ThrowIfNegative(pageIndex);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxPixels);
+        if (!PdfiumPlatform.IsSupported)
+        {
+            throw new PlatformNotSupportedException("PDF rendering needs Windows, Linux or macOS.");
+        }
+
+        return Pdfium.RenderThumbnailPngAsync(pdfPath, pageIndex, maxPixels, cancellationToken);
+    }
 }

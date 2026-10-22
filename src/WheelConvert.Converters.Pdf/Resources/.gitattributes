@@ -1,0 +1,2 @@
+# PDF byte offsets (xref) must survive checkout unchanged: never convert line endings.
+*.pdf binary

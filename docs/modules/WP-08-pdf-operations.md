@@ -16,7 +16,7 @@ All `pdf.*` targets, plus `IPdfPageRenderer` for thumbnails (WP-09) and `pdf.to-
 3. Operations (each writes **new** documents by importing pages):
 
    | Target | Output | Label |
-   |---|---|---|
+   |---|---|---|---|
    | pdf.split-pages | one PDF per page | `OutputLabels.Page(i, n)` |
    | pdf.split-half | pages 1..⌈n/2⌉, rest | `OutputLabels.Part(1)`, `Part(2)`; 1-page PDF → `Fail(Unsupported, "Only one page.")` |
    | pdf.extract-odd / even | one PDF | `OddPages` / `EvenPages`; even on a 1-page PDF → `Fail(Unsupported, "No even pages.")` |
@@ -40,18 +40,18 @@ All `pdf.*` targets, plus `IPdfPageRenderer` for thumbnails (WP-09) and `pdf.to-
 - Req. 7's one-time PDFium initialisation may take > 50 ms; that's allowed (WP-11 runs health checks off the UI thread).
 
 ## Acceptance tests (xUnit; generate test PDFs in the test with PDFsharp)
-| # | Test | Expected |
+| # | Test | Expected | Result (2026-10-22, Windows local + CI Windows/Linux) |
 |---|---|---|
-| 1 | 3-page PDF → split-pages | `doc (page 1..3).pdf`, each 1 page; source unchanged (hash) |
-| 2 | 40-page → split-pages | Names `page 01`…`page 40` |
-| 3 | 5-page → halves | 3 + 2 pages |
-| 4 | odd / even / reverse / rotate | Correct page counts / order / rotation |
-| 5 | reorder `"3,1,2"` / `"1,1"` / `"0"` / missing | Correct / Fail / Fail / Fail |
-| 6 | Encrypted PDF | `PasswordProtected`, no temp left |
-| 7 | Garbage bytes named .pdf | `CorruptInput` |
-| 8 | to-images on 2-page PDF | 2 PNGs, readable |
-| 9 | Renderer page count + thumbnail ≤ maxPixels | ✔ |
-| 10 | Cancel during split of 50 pages | Committed pieces stay, no temps |
+| 1 | 3-page PDF → split-pages | `doc (page 1..3).pdf`, each 1 page; source unchanged (hash) | PASS |
+| 2 | 40-page → split-pages | Names `page 01`…`page 40` | PASS |
+| 3 | 5-page → halves | 3 + 2 pages | PASS |
+| 4 | odd / even / reverse / rotate | Correct page counts / order / rotation | PASS |
+| 5 | reorder `"3,1,2"` / `"1,1"` / `"0"` / missing | Correct / Fail / Fail / Fail | PASS |
+| 6 | Encrypted PDF | `PasswordProtected`, no temp left | PASS |
+| 7 | Garbage bytes named .pdf | `CorruptInput` | PASS |
+| 8 | to-images on 2-page PDF | 2 PNGs, readable | PASS |
+| 9 | Renderer page count + thumbnail ≤ maxPixels | ✔ | PASS |
+| 10 | Cancel during split of 50 pages | Committed pieces stay, no temps | PASS |
 
 ## Start prompt
 ```
