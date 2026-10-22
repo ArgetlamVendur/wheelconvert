@@ -56,7 +56,7 @@ public partial class WheelWindow : Window, IWheelView
 
     public Func<IReadOnlyList<string>, IReadOnlyList<ConversionTarget>>? TargetsProvider { get; set; }
 
-    /// <summary>False while a hide is pending (req. 8): the wheel is already invisible to the user.</summary>
+    /// <summary>False while a hide is pending (req. 8): the wheel is already dismissed and only waits for Drop/DragLeave.</summary>
     public bool IsOpen => IsVisible && !_hidePending;
 
     public event EventHandler<WheelDropEventArgs>? Dropped;
@@ -65,7 +65,6 @@ public partial class WheelWindow : Window, IWheelView
     {
         _pendingHideTimer.Stop();
         _hidePending = false;
-        Opacity = 1;
         if (!_dragInProgress)
         {
             ClearSegments();
@@ -89,10 +88,9 @@ public partial class WheelWindow : Window, IWheelView
         _idleTimer.Stop();
         if (_dragInProgress)
         {
-            // WP-04 req. 8: on mouse-up the dismiss can arrive before Explorer delivers Drop. Hide visually but keep
-            // the window and its segments hit-testable so the pending Drop still resolves its segment.
+            // WP-04 req. 8: on mouse-up the dismiss can arrive before Explorer delivers Drop. Stay fully visible
+            // until Drop or DragLeave has been handled: Windows doesn't deliver drops to fully transparent pixels.
             _hidePending = true;
-            Opacity = 0;
             _pendingHideTimer.Stop();
             _pendingHideTimer.Start();
             return;
@@ -108,7 +106,6 @@ public partial class WheelWindow : Window, IWheelView
         _hidePending = false;
         _dragInProgress = false;
         Hide();
-        Opacity = 1;
         ClearSegments();
         CenterLabel.Text = string.Empty;
     }
