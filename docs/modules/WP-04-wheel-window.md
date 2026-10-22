@@ -1,6 +1,6 @@
 # WP-04: Wheel window and drag/drop
 
-**Builder:** Antigravity · **Reviewer:** Claude Code · **Depends on:** WP-01 · **Risk:** high (user-file safety)
+**Builder:** Claude Code · **Reviewer:** Antigravity · **Depends on:** WP-01 · **Risk:** high (user-file safety)
 
 ## Goal
 A circular, always-on-top, **non-activating** window that appears at a point, shows the conversion options for the file being dragged over it, and reports which segment the file was dropped on.
