@@ -40,6 +40,22 @@ jobs:
           }
           Write-Host "Safety grep passed ($($files.Count) files)."
 
+      - name: Merge-conflict markers
+        shell: pwsh
+        run: |
+          $bad = 0
+          foreach ($f in @(git ls-files)) {
+            if (-not (Test-Path -LiteralPath $f -PathType Leaf)) { continue }
+            $hits = @(Select-String -LiteralPath $f -Pattern '^(<{7}|>{7})' -Encoding utf8)
+            foreach ($h in $hits) {
+              Write-Host "::error file=$f,line=$($h.LineNumber)::merge-conflict marker"
+              Write-Host "${f}:$($h.LineNumber)"
+              $bad++
+            }
+          }
+          if ($bad -gt 0) { exit 1 }
+          Write-Host "No merge-conflict markers."
+
       - name: Restore
         run: dotnet restore WheelConvert.sln
 
@@ -54,6 +70,16 @@ jobs:
         run: |
           $projects = @(Get-ChildItem -Path tests -Recurse -Filter 'WheelConvert.Converters.*.Tests.csproj')
           if ($projects.Count -eq 0) { Write-Host "No converter test projects yet."; exit 0 }
+          foreach ($p in $projects) {
+            dotnet test $p.FullName -c Release
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: App tests (if any)
+        shell: pwsh
+        run: |
+          $projects = @(Get-ChildItem -Path tests/WheelConvert.App.Tests -Filter *.csproj -ErrorAction SilentlyContinue)
+          if ($projects.Count -eq 0) { Write-Host "No App test project yet."; exit 0 }
           foreach ($p in $projects) {
             dotnet test $p.FullName -c Release
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
