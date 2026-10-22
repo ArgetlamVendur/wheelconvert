@@ -14,7 +14,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 08 | PDF operations | TODO | Claude Code | Antigravity | | |
 | 09 | PDF reorder window | TODO | Antigravity | Claude Code | | Can start with a fake renderer |
 | 10 | QR reader | TODO | Antigravity | Claude Code | | |
-| 11 | Integration | TODO | Claude Code | Antigravity | | Start first: makes the app runnable |
+| 11 | Integration | IN PROGRESS (Claude Code) | Claude Code | Antigravity | | Start first: makes the app runnable |
 | 12 | Packaging + release | TODO | Claude Code | User | | Includes Defender go/no-go |
 
 ## Not yet verified anywhere
