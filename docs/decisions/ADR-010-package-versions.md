@@ -15,5 +15,8 @@ The base was created without NuGet access, so **no versions are pinned yet.** Th
 | xunit | Converters.Pdf.Tests (test only, not shipped) | 2.9.3 | Apache-2.0 (nuspec), 2026-10-22 | WP-08 |
 | xunit.runner.visualstudio | Converters.Pdf.Tests (test only, not shipped) | 4.0.1 | Apache-2.0 (nuspec), 2026-10-22 | WP-08 |
 | ZXing.Net | Converters.Qr | _TBD_ | | WP-10 |
+| Microsoft.NET.Test.Sdk | WheelConvert.App.Tests | 18.11.0 | MIT | WP-03 |
+| xunit | WheelConvert.App.Tests | 2.9.3 | Apache-2.0 | WP-03 |
+| xunit.runner.visualstudio | WheelConvert.App.Tests | 4.0.1 | Apache-2.0 | WP-03 |
 
 Upgrades: one package per PR, note breaking changes, re-run the module's tests.
