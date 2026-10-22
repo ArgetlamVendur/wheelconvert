@@ -76,24 +76,126 @@ public class HotkeyParserTests
     [Fact]
     public void HotkeyTrigger_InvalidHotkey_StartFailsWithoutThrowing()
     {
-        using var trigger = new HotkeyTrigger("Invalid+Hotkey+String");
+        HotkeyTrigger? trigger = null;
+        try
+        {
+            trigger = new HotkeyTrigger("Invalid+Hotkey+String");
 
-        var started = trigger.Start();
+            var started = trigger.Start();
 
-        Assert.False(started);
-        Assert.NotNull(trigger.LastError);
-        Assert.Contains("isn't valid", trigger.LastError, StringComparison.OrdinalIgnoreCase);
+            Assert.False(started);
+            Assert.NotNull(trigger.LastError);
+            Assert.Contains("isn't valid", trigger.LastError, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            trigger?.Dispose();
+        }
     }
 
     [Fact]
     public void HotkeyTrigger_StopAndDispose_AreIdempotent()
     {
-        using var trigger = new HotkeyTrigger("Ctrl+Alt+Space");
+        HotkeyTrigger? trigger = null;
+        try
+        {
+            trigger = new HotkeyTrigger("Ctrl+Alt+Shift+F24");
 
-        // Calling Stop or Dispose multiple times before or after Start must never throw
-        trigger.Stop();
-        trigger.Stop();
-        trigger.Dispose();
-        trigger.Dispose();
+            // Calling Stop or Dispose multiple times before or after Start must never throw
+            trigger.Stop();
+            trigger.Stop();
+            trigger.Dispose();
+            trigger.Dispose();
+        }
+        finally
+        {
+            trigger?.Dispose();
+        }
+    }
+
+    [Fact]
+    public void HotkeyTrigger_StartAndDispose_AllowsSubsequentRegistrationOnSameHotkey()
+    {
+        RunInSta(() =>
+        {
+            const string hotkey = "Ctrl+Alt+Shift+F24";
+            HotkeyTrigger? trigger1 = null;
+            HotkeyTrigger? trigger2 = null;
+
+            try
+            {
+                trigger1 = new HotkeyTrigger(hotkey);
+                var started1 = trigger1.Start();
+                Assert.True(started1, $"First trigger failed to start: {trigger1.LastError}");
+
+                trigger1.Dispose();
+                trigger1 = null;
+
+                trigger2 = new HotkeyTrigger(hotkey);
+                var started2 = trigger2.Start();
+                Assert.True(started2, $"Second trigger failed to start after disposing first: {trigger2.LastError}");
+            }
+            finally
+            {
+                trigger1?.Dispose();
+                trigger2?.Dispose();
+            }
+        });
+    }
+
+    [Fact]
+    public void HotkeyTrigger_SecondLiveTriggerWithSameHotkey_ReturnsFalseWithAlreadyUsedError()
+    {
+        RunInSta(() =>
+        {
+            const string hotkey = "Ctrl+Alt+Shift+F24";
+            HotkeyTrigger? trigger1 = null;
+            HotkeyTrigger? trigger2 = null;
+
+            try
+            {
+                trigger1 = new HotkeyTrigger(hotkey);
+                var started1 = trigger1.Start();
+                Assert.True(started1, $"First trigger failed to start: {trigger1.LastError}");
+
+                trigger2 = new HotkeyTrigger(hotkey);
+                var started2 = trigger2.Start();
+                Assert.False(started2);
+                Assert.NotNull(trigger2.LastError);
+                Assert.Contains("already used", trigger2.LastError, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                trigger1?.Dispose();
+                trigger2?.Dispose();
+            }
+        });
+    }
+
+    private static void RunInSta(Action action)
+    {
+        Exception? caught = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                caught = ex;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+
+        var completed = thread.Join(TimeSpan.FromSeconds(5));
+        Assert.True(completed, "STA test timed out.");
+
+        if (caught != null)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(caught).Throw();
+        }
     }
 }
+

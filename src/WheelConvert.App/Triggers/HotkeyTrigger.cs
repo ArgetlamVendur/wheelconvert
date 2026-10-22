@@ -31,7 +31,7 @@ public sealed class HotkeyTrigger : ITrigger
 
     public event EventHandler<WheelRequestedEventArgs>? WheelRequested;
 
-#pragma warning disable CS0067 // Event is required by ITrigger contract; WP-11 manages closing on repeat press
+#pragma warning disable CS0067 // Event is required by ITrigger contract; never raised by design (WP-03 req. 4; WP-11 manages closing on repeat press)
     public event EventHandler? WheelDismissRequested;
 #pragma warning restore CS0067
 
@@ -86,9 +86,9 @@ public sealed class HotkeyTrigger : ITrigger
             LastError = null;
             return true;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            LastError = $"Couldn't start hotkey trigger: {ex.Message}";
+            LastError = "The hotkey couldn't be set up.";
             Stop();
             return false;
         }
@@ -96,6 +96,7 @@ public sealed class HotkeyTrigger : ITrigger
 
     /// <summary>
     /// Unregisters the hotkey and disposes the message-only window. Idempotent and safe to call multiple times.
+    /// Must run on the thread that called <see cref="Start"/>.
     /// </summary>
     public void Stop()
     {
@@ -129,13 +130,13 @@ public sealed class HotkeyTrigger : ITrigger
     {
         if (msg == NativeMethods.WM_HOTKEY && wParam.ToInt32() == HotkeyId)
         {
-            var screenPoint = NativeMethods.GetCursorPos(out var pt)
-                ? new ScreenPoint(pt.x, pt.y)
-                : new ScreenPoint(0, 0);
-
-            // Always raise WheelRequested; WP-11 turns a second press into a dismiss if the wheel is open.
-            WheelRequested?.Invoke(this, new WheelRequestedEventArgs(screenPoint));
             handled = true;
+
+            if (NativeMethods.GetCursorPos(out var pt))
+            {
+                // Always raise WheelRequested; WP-11 turns a second press into a dismiss if the wheel is open.
+                WheelRequested?.Invoke(this, new WheelRequestedEventArgs(new ScreenPoint(pt.x, pt.y)));
+            }
         }
 
         return nint.Zero;
