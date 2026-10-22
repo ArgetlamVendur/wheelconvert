@@ -10,17 +10,19 @@
         ShowInTaskbar="False"
         ShowActivated="False"
         ResizeMode="NoResize"
+        Focusable="False"
         AllowDrop="True">
     <!--
-      STUB: WP-04 (docs/modules/WP-04-wheel-window.md).
-      ADR-003 / AGENTS guardrails: every pixel that should accept drops needs alpha >= 1, and the window
-      must never take focus (WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW set in code-behind).
+      ADR-003 / WP-04 req. 3: fully transparent pixels don't receive drops, so the disc (including the centre hole)
+      is painted with alpha >= 1; only the corners outside the disc are transparent.
+      The disc diameter is twice WheelWindow.OuterRadius.
     -->
     <Grid>
-        <Ellipse Fill="#CC202020" Stroke="#66FFFFFF" StrokeThickness="1" />
+        <Ellipse Width="250" Height="250" Fill="#CC202020" Stroke="#66FFFFFF" StrokeThickness="1" />
         <Canvas x:Name="SegmentCanvas" />
         <TextBlock x:Name="CenterLabel"
                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                   MaxWidth="76" TextAlignment="Center" TextWrapping="Wrap"
                    Foreground="White" FontSize="14" Text="" />
     </Grid>
 </Window>

@@ -36,19 +36,19 @@ A circular, always-on-top, **non-activating** window that appears at a point, sh
 - `Path` is ambiguous (implicit `using System.IO` vs `System.Windows.Shapes.Path`, CS0104). Use an alias: `using ShapePath = System.Windows.Shapes.Path;`. Same for `Brush`/`Timer` if WinForms types leak in (ADR-007).
 
 ## Acceptance tests
-| # | Who | Steps | Expected |
-|---|---|---|---|
-| 1 | Agent | Build App; grep shows no `DragDropEffects.Move` | ✔ |
-| 2 | User | Open the wheel (hotkey or Shift-drag), drag `photo.png` over it | Centre `.png`, segments shown, hovered one highlights |
-| 3 | User | Drag `notes.txt` over it | "Nothing available", no-drop cursor |
-| 4 | User | Watch the cursor over the wheel during Shift-drag | **Copy** cursor (+), never Move |
-| 5 | User | Drop on a segment | Wheel hides; log shows the drop; **photo.png still in place** |
-| 6 | User | Drop in the centre hole | Nothing happens, file in place |
-| 7 | User | Drag 3 files | "+3 files" label |
-| 8 | User | 150 % display scaling; second monitor if available | Wheel centred under cursor, fully on-screen at edges |
-| 9 | User | While the wheel shows, look at Explorer's title bar | Still active (not greyed) |
-| 10 | User | Shift-drag `photo.png`, **release the mouse on a segment** (the real gesture, not a separate drop) | Converted (after WP-06/11); the dismiss didn't swallow the drop |
-| 11 | User | Shift-drag from a USB drive and from a network share onto a segment (ADR-003) | Source still in place on both |
+| # | Who | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1 | Agent | Build App; grep shows no `DragDropEffects.Move` | ✔ | PASS (2026-10-22: solution 0 warnings, Debug + Release; no `DragDropEffects.Move`/`.All` in src/ or tests/) |
+| 2 | User | Open the wheel (hotkey or Shift-drag), drag `photo.png` over it | Centre `.png`, segments shown, hovered one highlights | NEEDS USER (needs a trigger: WP-02 or WP-03) |
+| 3 | User | Drag `notes.txt` over it | "Nothing available", no-drop cursor | NEEDS USER (needs a trigger: WP-02 or WP-03) |
+| 4 | User | Watch the cursor over the wheel during Shift-drag | **Copy** cursor (+), never Move | NEEDS USER (needs a trigger: WP-02 or WP-03) |
+| 5 | User | Drop on a segment | Wheel hides; log shows the drop; **photo.png still in place** | NEEDS USER (needs a trigger: WP-02 or WP-03) |
+| 6 | User | Drop in the centre hole | Nothing happens, file in place | NEEDS USER (needs a trigger: WP-02 or WP-03) |
+| 7 | User | Drag 3 files | "+3 files" label | NEEDS USER (needs a trigger: WP-02 or WP-03) |
+| 8 | User | 150 % display scaling; second monitor if available | Wheel centred under cursor, fully on-screen at edges | NEEDS USER (needs a trigger: WP-02 or WP-03) |
+| 9 | User | While the wheel shows, look at Explorer's title bar | Still active (not greyed) | NEEDS USER (needs a trigger: WP-02 or WP-03) |
+| 10 | User | Shift-drag `photo.png`, **release the mouse on a segment** (the real gesture, not a separate drop) | Converted (after WP-06/11); the dismiss didn't swallow the drop | NEEDS USER (needs a trigger: WP-02 or WP-03) |
+| 11 | User | Shift-drag from a USB drive and from a network share onto a segment (ADR-003) | Source still in place on both | NEEDS USER (needs a trigger: WP-02 or WP-03) |
 
 ## Review focus
 Effects never Move on any path (incl. exceptions); DPI conversion; extended styles on x64 (`GetWindowLongPtr`); `Dropped` raised asynchronously; no file access.
