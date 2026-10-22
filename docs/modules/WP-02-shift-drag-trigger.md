@@ -26,7 +26,7 @@ Wheel, tray, composition, Core, other triggers.
 6. Hook callback: compute the state transition, `Dispatcher.BeginInvoke` the event, **always return `CallNextHookEx`**. Never swallow mouse input. No logging, no allocation-heavy work, no locks inside the callback. The `WindowFromPoint` + `GetClassName` call at mouse-down is the one allowed exception (it's fast).
 7. Ignore injected events? **No** — leave `LLMHF_INJECTED` events alone (touchpads and tablets inject).
 8. `Stop()`/`Dispose()`: `UnhookWindowsHookEx`; idempotent.
-9. Liveness: Windows silently removes hooks that time out (`LowLevelHooksTimeout`). Track the last callback time; expose `DateTime LastActivityUtc` so WP-11 can reinstall if no events arrive for a long time while the user is clearly active. (Detection policy is WP-11's.)
+9. Liveness: Windows silently removes hooks that time out (`LowLevelHooksTimeout`). Track the last callback time; expose `DateTime LastActivityUtc` so WP-11 can reinstall if no events arrive for a long time while the user is clearly active. (Detection policy is WP-11's.) After a successful Start() (including a reinstall), set LastActivityUtc to now, so the liveness check does not restart the hook every minute while the user only types.
 
 ## Gotchas
 - `GetModuleHandle(null)` is correct for `WH_MOUSE_LL` in .NET; don't pass `Marshal.GetHINSTANCE`.
