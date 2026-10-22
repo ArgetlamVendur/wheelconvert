@@ -40,7 +40,7 @@ Wheel, tray, composition, Core, other triggers.
 |---|---|---|---|
 | 1 | Agent | Build App | 0 warnings |
 | 2 | Agent | Read-through: every P/Invoke has a doc URL and matches it | ✔ |
-| 3 | User | `C:\wc-test\` in Explorer, hold Shift, drag `photo.png` 3 cm | Wheel opens once at the cursor |
+| 3 | User | `D:\Claude Base\Cowork Playground\APPS\wc-test\` in Explorer, hold Shift, drag `photo.png` 3 cm | Wheel opens once at the cursor |
 | 4 | User | Same without Shift | No wheel; normal Explorer drag |
 | 5 | User | Shift-drag on the desktop | Wheel opens |
 | 6 | User | Shift+drag to select text in Notepad / a browser | No wheel |

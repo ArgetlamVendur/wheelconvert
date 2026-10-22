@@ -11,7 +11,7 @@ The agents read `AGENTS.md`. This page is for you.
 1. Open `docs/STATUS.md`, pick the next `TODO` WP (suggested order is in `docs/modules/README.md`).
 2. Open the builder tool named in the WP (Claude Code or Antigravity) in the repo folder and paste the WP's **Start prompt**.
 3. Agent restates the plan → you say "go" → it builds, runs its checks, opens a PR.
-4. Run the "User" tests in the WP table yourself (scratch files only, `C:\wc-test\`).
+4. Run the "User" tests in the WP table yourself (scratch files only, `D:\Claude Base\Cowork Playground\APPS\wc-test\`).
 5. Open the **other** tool and paste:
    ```
    Read AGENTS.md and docs/checklists/review.md. Review the PR for WP-NN against docs/modules/WP-NN-*.md.

@@ -52,7 +52,7 @@ If you can't finish: set the WP to `BLOCKED: <reason>` in STATUS.md, commit what
 8. **Licences** (ADR-005): no AGPL/GPL libraries. New package → licence check + ADR-010 entry in the same PR.
 9. **No scope creep**: no features, packages, settings or files outside your WP. Ideas go in the PR description under "Follow-ups".
 10. **Untrusted text** (QR content, file names) is never executed, opened or used in a shell.
-11. **Test with scratch files only** (`C:\wc-test\`) until WP-11 is approved.
+11. **Test with scratch files only** (`D:\Claude Base\Cowork Playground\APPS\wc-test\`) until WP-11 is approved.
 12. **If something is impossible or the spec is wrong, say so.** Never silently work around a rule.
 
 ---
