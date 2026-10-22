@@ -103,7 +103,7 @@ public sealed class TriggerManager : IDisposable
             return;
         }
 
-        _log.Warn($"Shift-drag unavailable ({shiftDragError}); hotkey fallback {(started ? "started" : $"failed: {hotkey.LastError}")}.");
+        _log.Warn($"Shift-drag unavailable ({shiftDragError.TrimEnd('.')}); hotkey fallback {(started ? "started" : $"failed ({hotkey.LastError?.TrimEnd('.')})")}.");
         _notifier.Notify(
             started ? NotificationKind.Warning : NotificationKind.Error,
             UserText.Title,
