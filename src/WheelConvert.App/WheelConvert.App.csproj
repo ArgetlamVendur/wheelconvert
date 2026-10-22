@@ -16,12 +16,8 @@
     <SelfContained>false</SelfContained>
     <!-- Required by the [LibraryImport] source generator used in Interop/ (SYSLIB1062 otherwise). No hand-written unsafe code. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!--
-      The App could not be compiled where the base was written (no Windows). Until the first green CI build,
-      code-analysis findings are warnings, not errors, so a style rule can't block the first build.
-      Compiler warnings still fail the build. WP-11 sets this back to true once CI is green.
-    -->
-    <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
+    <!-- Code-analysis findings fail the build, as everywhere else (WP-11 req. 12). -->
+    <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <!-- Remove implicit WinForms global usings so WPF types (Application, DragEventArgs…) aren't ambiguous. -->

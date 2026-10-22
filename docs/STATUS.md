@@ -14,13 +14,17 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 08 | PDF operations | TODO | Claude Code | Antigravity | | |
 | 09 | PDF reorder window | TODO | Antigravity | Claude Code | | Can start with a fake renderer |
 | 10 | QR reader | TODO | Antigravity | Claude Code | | |
+<<<<<<< HEAD
+| 11 | Integration | REVIEW | Claude Code | Antigravity | wp-11-integration | Builds 0 warnings locally; analyzers now errors in App. Acceptance needs WP-02/03/04/05/06 for user tests |
+| 12 | Packaging + release | TODO | Claude Code | User | | Includes Defender go/no-go |
+=======
 | 11 | Integration | TODO | Claude Code | Antigravity | | Start first: makes the app runnable |
 | 12 | Packaging + release | TODO | Antigravity | Claude Code | | Includes Defender go/no-go |
 
 Reviewer must be a different model family from the builder.
+>>>>>>> origin/main
 
 ## Not yet verified anywhere
-- `WheelConvert.App` has **never been compiled** (written without Windows). First CI run will likely need small fixes: that's WP-11's first task.
 - Shift-drag hook vs. antivirus: unknown until WP-12's go/no-go.
 
 ## Open questions for the user
