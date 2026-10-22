@@ -7,7 +7,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 01 | Core | DONE | base | Claude ×2 (independent) | — | Built + 64 tests pass on Linux; reviews: docs/reviews/2026-10-20-cp1-core.md, -cp2-final-audit.md |
 | 02 | Shift-drag trigger | TODO | Claude Code | Antigravity | | Highest risk; hotkey is the fallback |
 | 03 | Hotkey trigger | TODO | Antigravity | Claude Code | | |
-| 04 | Wheel window | TODO | Antigravity | Claude Code | | File-safety critical |
+| 04 | Wheel window | TODO | Claude Code | Antigravity | | File-safety critical |
 | 05 | Tray + settings | TODO | Antigravity | Claude Code | | |
 | 06 | Image converter | TODO | Antigravity | Claude Code | | First real conversion |
 | 07 | Media converter | TODO | Claude Code | Antigravity | | Needs FFmpeg for tests |
@@ -15,7 +15,9 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 09 | PDF reorder window | TODO | Antigravity | Claude Code | | Can start with a fake renderer |
 | 10 | QR reader | TODO | Antigravity | Claude Code | | |
 | 11 | Integration | TODO | Claude Code | Antigravity | | Start first: makes the app runnable |
-| 12 | Packaging + release | TODO | Claude Code | User | | Includes Defender go/no-go |
+| 12 | Packaging + release | TODO | Antigravity | Claude Code | | Includes Defender go/no-go |
+
+Reviewer must be a different model family from the builder.
 
 ## Not yet verified anywhere
 - `WheelConvert.App` has **never been compiled** (written without Windows). First CI run will likely need small fixes: that's WP-11's first task.

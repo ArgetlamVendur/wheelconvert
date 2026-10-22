@@ -1,6 +1,6 @@
 # WP-12: Packaging and release
 
-**Builder:** Claude Code · **Reviewer:** User · **Depends on:** all · **Risk:** medium (antivirus, signing)
+**Builder:** Antigravity · **Reviewer:** Claude Code · **Depends on:** all · **Risk:** medium (antivirus, signing)
 
 ## Goal
 A downloadable, installable release on GitHub, with licences in order and the antivirus go/no-go answered.
