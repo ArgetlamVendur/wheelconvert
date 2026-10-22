@@ -11,7 +11,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 05 | Tray + settings | TODO | Antigravity | Claude Code | | |
 | 06 | Image converter | TODO | Antigravity | Claude Code | | First real conversion |
 | 07 | Media converter | TODO | Claude Code | Antigravity | | Needs FFmpeg for tests |
-| 08 | PDF operations | IN PROGRESS (Claude Code) | Claude Code | Antigravity | wp-08-pdf | |
+| 08 | PDF operations | REVIEW | Claude Code | Antigravity | wp-08-pdf | 64 xUnit tests pass (CI Windows + Linux). PDFsharp pinned 6.2.4: 6.5.0+ is AGPL |
 | 09 | PDF reorder window | TODO | Antigravity | Claude Code | | Can start with a fake renderer |
 | 10 | QR reader | TODO | Antigravity | Claude Code | | |
 <<<<<<< HEAD
