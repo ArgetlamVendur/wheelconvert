@@ -36,7 +36,7 @@ public partial class WheelWindow : Window, IWheelView
     private readonly DispatcherTimer _pendingHideTimer;
     private readonly List<ShapePath> _segmentShapes = [];
 
-    private IReadOnlyList<string> _paths = [];
+    private string[] _paths = [];
     private IReadOnlyList<ConversionTarget> _targets = [];
     private int _highlighted = -1;
     private bool _dragInProgress;
@@ -176,7 +176,7 @@ public partial class WheelWindow : Window, IWheelView
             _targets = [];
             ClearSegments();
 
-            if (_paths.Count == 0)
+            if (_paths.Length == 0)
             {
                 CenterLabel.Text = "Not a file";
                 return;
@@ -189,7 +189,7 @@ public partial class WheelWindow : Window, IWheelView
                 return;
             }
 
-            CenterLabel.Text = _paths.Count == 1 ? ExtensionLabel(_paths[0]) : $"+{_paths.Count} files";
+            CenterLabel.Text = _paths.Length == 1 ? ExtensionLabel(_paths[0]) : $"+{_paths.Length} files";
             DrawSegments();
             SetHighlight(SegmentAt(e));
             effects = DragDropEffects.Copy;
