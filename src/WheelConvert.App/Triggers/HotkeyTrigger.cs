@@ -1,14 +1,23 @@
+using System.Runtime.InteropServices;
+using System.Windows.Interop;
+using WheelConvert.App.Interop;
 using WheelConvert.Core.Contracts;
 
 namespace WheelConvert.App.Triggers;
 
 /// <summary>
-/// STUB: WP-03 (docs/modules/WP-03-hotkey-trigger.md). RegisterHotKey on a message-only window; on press,
-/// opens the wheel at the cursor. The user then drags a file onto the open wheel.
+/// Global hotkey trigger (WP-03). Registers a system-wide hotkey via a message-only window
+/// and raises <see cref="WheelRequested"/> with the mouse position on press.
+/// Fallback for when the Shift-drag hook cannot be used (ADR-006).
 /// </summary>
 public sealed class HotkeyTrigger : ITrigger
 {
+    private const int HotkeyId = 0x4357; // Unique ID ('C''W') for this hotkey on our window
+
     private readonly string _hotkey;
+    private HwndSource? _source;
+    private bool _isRegistered;
+    private bool _disposed;
 
     /// <param name="hotkey">AppSettings.Hotkey, e.g. "Ctrl+Alt+Space".</param>
     public HotkeyTrigger(string hotkey)
@@ -20,25 +29,116 @@ public sealed class HotkeyTrigger : ITrigger
 
     public string? LastError { get; private set; }
 
-#pragma warning disable CS0067
     public event EventHandler<WheelRequestedEventArgs>? WheelRequested;
 
+#pragma warning disable CS0067 // Event is required by ITrigger contract; never raised by design (WP-03 req. 4; WP-11 manages closing on repeat press)
     public event EventHandler? WheelDismissRequested;
 #pragma warning restore CS0067
 
-    // TODO(WP-03): parse _hotkey, create HwndSource message-only window, RegisterHotKey, listen for WM_HOTKEY.
-    // On failure set LastError to e.g. "Ctrl+Alt+Space is already used by another app." and return false.
+    /// <summary>
+    /// Registers the hotkey on a message-only window. Never throws.
+    /// Returns false and sets <see cref="LastError"/> on failure.
+    /// </summary>
     public bool Start()
     {
-        _ = _hotkey;
-        LastError = "Hotkey is not implemented yet.";
-        return false;
+        if (_disposed)
+        {
+            LastError = "Hotkey trigger has been disposed.";
+            return false;
+        }
+
+        if (_isRegistered)
+        {
+            return true;
+        }
+
+        if (!HotkeyParser.TryParse(_hotkey, out var modifiers, out var vk))
+        {
+            LastError = $"Hotkey '{_hotkey}' isn't valid.";
+            return false;
+        }
+
+        try
+        {
+            var parameters = new HwndSourceParameters("WheelConvert_HotkeyHost")
+            {
+                ParentWindow = NativeMethods.HWND_MESSAGE,
+            };
+
+            var source = new HwndSource(parameters);
+            source.AddHook(HwndHook);
+            _source = source;
+
+            if (!NativeMethods.RegisterHotKey(source.Handle, HotkeyId, modifiers, vk))
+            {
+                var error = Marshal.GetLastWin32Error();
+                LastError = error == NativeMethods.ERROR_HOTKEY_ALREADY_REGISTERED
+                    ? $"{_hotkey} is already used by another app."
+                    : $"Couldn't register hotkey '{_hotkey}' (error {error}).";
+
+                source.RemoveHook(HwndHook);
+                source.Dispose();
+                _source = null;
+                return false;
+            }
+
+            _isRegistered = true;
+            LastError = null;
+            return true;
+        }
+        catch (Exception)
+        {
+            LastError = "The hotkey couldn't be set up.";
+            Stop();
+            return false;
+        }
     }
 
-    // TODO(WP-03): UnregisterHotKey, dispose HwndSource.
+    /// <summary>
+    /// Unregisters the hotkey and disposes the message-only window. Idempotent and safe to call multiple times.
+    /// Must run on the thread that called <see cref="Start"/>.
+    /// </summary>
     public void Stop()
     {
+        if (_isRegistered && _source != null && _source.Handle != nint.Zero)
+        {
+            NativeMethods.UnregisterHotKey(_source.Handle, HotkeyId);
+            _isRegistered = false;
+        }
+
+        if (_source != null)
+        {
+            _source.RemoveHook(HwndHook);
+            _source.Dispose();
+            _source = null;
+        }
     }
 
-    public void Dispose() => Stop();
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        Stop();
+        _disposed = true;
+        GC.SuppressFinalize(this);
+    }
+
+    private nint HwndHook(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
+    {
+        if (msg == NativeMethods.WM_HOTKEY && wParam.ToInt32() == HotkeyId)
+        {
+            handled = true;
+
+            if (NativeMethods.GetCursorPos(out var pt))
+            {
+                // Always raise WheelRequested; WP-11 turns a second press into a dismiss if the wheel is open.
+                WheelRequested?.Invoke(this, new WheelRequestedEventArgs(new ScreenPoint(pt.x, pt.y)));
+            }
+        }
+
+        return nint.Zero;
+    }
 }

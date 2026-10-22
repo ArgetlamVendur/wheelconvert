@@ -6,7 +6,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 |---|---|---|---|---|---|---|
 | 01 | Core | DONE | base | Claude ×2 (independent) | — | Built + 64 tests pass on Linux; reviews: docs/reviews/2026-10-20-cp1-core.md, -cp2-final-audit.md |
 | 02 | Shift-drag trigger | TODO | Claude Code | Antigravity | | Highest risk; hotkey is the fallback |
-| 03 | Hotkey trigger | TODO | Antigravity | Claude Code | | |
+| 03 | Hotkey trigger | DONE | Antigravity | Claude Code | PR #6 | Merged. 36 App tests (incl. STA RegisterHotKey); message-only window |
 | 04 | Wheel window | REVIEW | Claude Code | Antigravity | wp-04-wheel | File-safety critical. Builds 0 warnings; user tests need WP-02 or WP-03 to open the wheel |
 | 05 | Tray + settings | TODO | Antigravity | Claude Code | | |
 | 06 | Image converter | TODO | Antigravity | Claude Code | | First real conversion |
