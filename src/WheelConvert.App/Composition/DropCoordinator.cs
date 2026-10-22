@@ -15,8 +15,7 @@ namespace WheelConvert.App.Composition;
 /// </summary>
 public sealed class DropCoordinator
 {
-    private const string Title = "WheelConvert";
-    private const int MaxMessageLength = 120;
+    private const string Title = UserText.Title;
     private const int QrPreviewLength = 80;
 
     private readonly FormatRegistry _registry;
@@ -75,7 +74,7 @@ public sealed class DropCoordinator
             var pdf = paths.FirstOrDefault(p => FileClassifier.Classify(p) == FileKind.Pdf);
             if (pdf is null)
             {
-                _notifier.Notify(NotificationKind.Warning, Title, Fit($"{target.Label} needs a PDF file."));
+                _notifier.Notify(NotificationKind.Warning, Title, UserText.Fit($"{target.Label} needs a PDF file."));
                 return;
             }
 
@@ -99,7 +98,7 @@ public sealed class DropCoordinator
         if (plan.Skipped.Count > 0)
         {
             var files = plan.Skipped.Count == 1 ? "1 file" : $"{plan.Skipped.Count} files";
-            _notifier.Notify(NotificationKind.Warning, Title, Fit($"Skipped {files}: {plan.Skipped[0].Reason}"));
+            _notifier.Notify(NotificationKind.Warning, Title, UserText.Fit($"Skipped {files}: {plan.Skipped[0].Reason}"));
         }
 
         if (plan.Requests.Count > 0)
@@ -153,7 +152,7 @@ public sealed class DropCoordinator
             }
             else if (showSuccess && failures.Count == 0)
             {
-                _notifier.Notify(NotificationKind.Success, Title, Fit($"QR copied: {Preview(texts[0])}"));
+                _notifier.Notify(NotificationKind.Success, Title, UserText.Fit($"QR copied: {Preview(texts[0])}"));
             }
         }
 
@@ -165,7 +164,7 @@ public sealed class DropCoordinator
 
             // Partial outputs of a failed job first (CONTRACTS C2 S5), otherwise whatever did succeed.
             var reveal = failures.Concat(successes).SelectMany(j => j.Result!.OutputPaths).FirstOrDefault();
-            _notifier.Notify(NotificationKind.Error, title, Fit(message), reveal);
+            _notifier.Notify(NotificationKind.Error, title, UserText.Fit(message), reveal);
             return;
         }
 
@@ -178,7 +177,7 @@ public sealed class DropCoordinator
         var summary = batch.Jobs.Count == 1
             ? $"Converted {Path.GetFileName(successes[0].Request.SourcePath)} → {successes[0].Request.Target.Label}"
             : $"Converted {successes.Count} of {batch.Jobs.Count} files";
-        _notifier.Notify(NotificationKind.Success, Title, Fit(summary), outputs[0]);
+        _notifier.Notify(NotificationKind.Success, Title, UserText.Fit(summary), outputs[0]);
     }
 
     /// <summary>First characters of untrusted text on one line, control characters removed.</summary>
@@ -197,8 +196,4 @@ public sealed class DropCoordinator
 
         return builder.ToString();
     }
-
-    /// <summary>User-facing text is at most 120 characters (AGENTS §6); long file names are cut, not the app.</summary>
-    private static string Fit(string message) =>
-        message.Length <= MaxMessageLength ? message : string.Concat(message.AsSpan(0, MaxMessageLength - 1), "…");
 }
