@@ -5,7 +5,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | WP | Module | State | Builder | Reviewer | Branch / PR | Notes |
 |---|---|---|---|---|---|---|
 | 01 | Core | DONE | base | Claude ×2 (independent) | — | Built + 64 tests pass on Linux; reviews: docs/reviews/2026-10-20-cp1-core.md, -cp2-final-audit.md |
-| 02 | Shift-drag trigger | IN PROGRESS (Claude Code) | Claude Code | Antigravity | wp-02-shift-drag | Highest risk; hotkey is the fallback |
+| 02 | Shift-drag trigger | REVIEW | Claude Code | Antigravity | wp-02-shift-drag | Highest risk; hotkey is the fallback. Release build 0 warnings; 9 GestureStateMachine tests pass; user tests 3–9 pending |
 | 03 | Hotkey trigger | DONE | Antigravity | Claude Code | PR #6 | Merged. 36 App tests (incl. STA RegisterHotKey); message-only window |
 | 04 | Wheel window | REVIEW | Claude Code | Antigravity | wp-04-wheel | File-safety critical. Builds 0 warnings; user tests need WP-02 or WP-03 to open the wheel |
 | 04 | Wheel window | TODO | Claude Code | Antigravity | | File-safety critical |
