@@ -34,17 +34,17 @@ Convert between image formats: targets `image.jpg`, `image.png`, `image.webp`, `
 - Don't use `System.Drawing` (Windows-only, breaks the net8.0 rule).
 
 ## Acceptance tests (xUnit unless marked User)
-| # | Test | Expected |
-|---|---|---|
-| 1 | PNG with alpha → JPG | Output exists, white background, source byte-identical before/after |
-| 2 | JPG → PNG/WebP/ICO | Valid files (re-open with Magick), ICO contains 6 sizes |
-| 3 | EXIF-rotated JPG → PNG | Output upright |
-| 4 | Truncated/corrupt JPG | `Fail(CorruptInput)`, **no `.~wc-` file left** |
-| 5 | Output name already exists | `photo (converted 2).jpg`, original output untouched |
-| 6 | Cancellation token cancelled before start | `OperationCanceledException`, no temp file left |
-| 7 | User: real iPhone HEIC → JPG | Correct image |
-| 7a | MVG payload (`push graphic-context … image over 0,0 0,0 'file.txt'`) saved as `evil.png` → JPG | `Fail(CorruptInput)`; **no new files in the folder**; `file.txt` not read |
-| 8 | User: through the wheel end-to-end (after WP-11) | Output next to source, notification shown |
+| # | Test | Expected | Result (2026-11-02, Windows local) |
+|---|---|---|---|
+| 1 | PNG with alpha → JPG | Output exists, white background, source byte-identical before/after | PASS |
+| 2 | JPG → PNG/WebP/ICO | Valid files (re-open with Magick), ICO contains 6 sizes | PASS |
+| 3 | EXIF-rotated JPG → PNG | Output upright | PASS |
+| 4 | Truncated/corrupt JPG | `Fail(CorruptInput)`, **no `.~wc-` file left** | PASS |
+| 5 | Output name already exists | `photo (converted 2).jpg`, original output untouched | PASS |
+| 6 | Cancellation token cancelled before start | `OperationCanceledException`, no temp file left | PASS |
+| 7 | User: real iPhone HEIC → JPG | Correct image | NEEDS USER |
+| 7a | MVG payload (`push graphic-context … image over 0,0 0,0 'file.txt'`) saved as `evil.png` → JPG | `Fail(CorruptInput)`; **no new files in the folder**; `file.txt` not read | PASS |
+| 8 | User: through the wheel end-to-end (after WP-11) | Output next to source, notification shown | NEEDS USER |
 
 ## Start prompt
 ```
