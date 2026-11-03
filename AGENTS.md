@@ -24,7 +24,7 @@ You have no memory of earlier sessions or of other agents. The repo is the only 
 2. Create branch `wp-NN-<short-name>` from the latest `main`. Set the WP to `IN PROGRESS (<your tool>)` in STATUS.md, commit that first.
 3. Restate to the user in 3–5 lines what you will build and which files you will touch. Wait for "go".
 4. Build only what the WP says. Touch only files in its **Owns** list (plus STATUS.md and `docs/reviews/`). **Shared, append-only files** any WP may add to (never edit others' lines; expect merge conflicts and resolve by keeping both): `WheelConvert.sln` (add your test project) and `docs/decisions/ADR-010-package-versions.md` (fill your row).
-5. Run the checks in §5. Fill the WP's acceptance table: PASS / FAIL / NEEDS USER.
+5. Run the checks in §5. Fill the acceptance table in your own WP file (docs/modules/WP-NN-*.md, only that table) with PASS / FAIL / NEEDS USER.
 6. Set the WP to `REVIEW` in STATUS.md, push, open a PR titled `WP-NN: <name>`. Stop.
 
 Reviewing: use `docs/checklists/review.md`. Write the result to `docs/reviews/WP-NN-<date>.md` as **APPROVE** or **CHANGES NEEDED** with numbered findings (file:line, why, fix). Don't rewrite the author's code; real problems go back to the author. The reviewer must not be the same tool that built the WP.
