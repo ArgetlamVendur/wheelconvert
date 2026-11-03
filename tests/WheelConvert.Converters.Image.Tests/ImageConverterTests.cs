@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using ImageMagick;
+using ImageMagick.Configuration;
 using WheelConvert.Core.Contracts;
 using WheelConvert.Core.Formats;
 using WheelConvert.Core.Output;
@@ -44,6 +45,199 @@ public sealed class ImageConverterTests : IDisposable
         Assert.True(health.IsAvailable);
         Assert.Equal(ConverterHealth.Ready, health);
     }
+
+    [Fact]
+    public void SecurityPolicy_DeniesMvg_WhenFormatExplicitlySet()
+    {
+        var path = Path.Combine(_testDir, "test.mvg");
+        File.WriteAllText(path, "push graphic-context\nviewbox 0 0 100 100\npop graphic-context");
+        var settings = new MagickReadSettings { Format = MagickFormat.Mvg };
+        var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage(path, settings));
+        Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SecurityPolicy_DeniesMsl_WhenFormatExplicitlySet()
+    {
+        var path = Path.Combine(_testDir, "test.msl");
+        File.WriteAllText(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<image></image>");
+        var settings = new MagickReadSettings { Format = MagickFormat.Msl };
+        var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage(path, settings));
+        Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SecurityPolicy_DeniesSvg_WhenFormatExplicitlySet()
+    {
+        var path = Path.Combine(_testDir, "test.svg");
+        File.WriteAllText(path, "<svg width=\"10\" height=\"10\"><rect width=\"10\" height=\"10\" fill=\"red\"/></svg>");
+        var settings = new MagickReadSettings { Format = MagickFormat.Svg };
+        var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage(path, settings));
+        Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SecurityPolicy_DeniesText_WhenFormatExplicitlySet()
+    {
+        var path = Path.Combine(_testDir, "test.txt");
+        File.WriteAllText(path, "some secret text payload");
+        var settings = new MagickReadSettings { Format = MagickFormat.Text };
+        var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage(path, settings));
+        Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SecurityPolicy_DeniesUrl_WhenFormatExplicitlySet()
+    {
+        var settings = new MagickReadSettings { Format = MagickFormat.Http };
+        var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage("http://127.0.0.1/test.png", settings));
+        Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SecurityPolicy_DeniesEphemeral_InPolicyConfiguration()
+    {
+        // Ephemeral pseudo-protocol is disabled by policy
+        Assert.Contains(@"pattern=""EPHEMERAL""", ConfigurationFiles.Default.Policy.Data);
+        var path = Path.Combine(_testDir, "test_eph.mvg");
+        File.WriteAllText(path, "push graphic-context\nviewbox 0 0 10 10\npop graphic-context");
+        var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage("ephemeral:" + path));
+        Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SecurityPolicy_DeniesPs_WhenFormatExplicitlySet()
+    {
+        var path = Path.Combine(_testDir, "test.ps");
+        File.WriteAllText(path, "%!PS-Adobe-3.0\n%%BoundingBox: 0 0 10 10\nshowpage");
+        var settings = new MagickReadSettings { Format = MagickFormat.Ps };
+        var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage(path, settings));
+        Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SecurityPolicy_DeniesEps_WhenFormatExplicitlySet()
+    {
+        var path = Path.Combine(_testDir, "test.eps");
+        File.WriteAllText(path, "%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 10 10\nshowpage");
+        var settings = new MagickReadSettings { Format = MagickFormat.Eps };
+        var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage(path, settings));
+        Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SecurityPolicy_DeniesPdf_WhenFormatExplicitlySet()
+    {
+        var path = Path.Combine(_testDir, "test.pdf");
+        File.WriteAllText(path, "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\nxref\n0 1\n0000000000 65535 f \ntrailer<</Size 1/Root 1 0 R>>\nstartxref\n50\n%%EOF");
+        var settings = new MagickReadSettings { Format = MagickFormat.Pdf };
+        var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage(path, settings));
+        Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SecurityPolicy_DeniesXps_WhenFormatExplicitlySet()
+    {
+        var path = Path.Combine(_testDir, "test.xps");
+        File.WriteAllText(path, "<FixedDocumentSequence xmlns=\"http://schemas.microsoft.com/xps/2005/06\" />");
+        var settings = new MagickReadSettings { Format = MagickFormat.Xps };
+        var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage(path, settings));
+        Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SecurityPolicy_DeniesPathAtPrefix()
+    {
+        var cur = Directory.GetCurrentDirectory();
+        try
+        {
+            Directory.SetCurrentDirectory(_testDir);
+            var path = "test_at.png";
+            using (var img = new MagickImage(MagickColors.Red, 10, 10))
+            {
+                img.Write(path, MagickFormat.Png);
+            }
+
+            var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage("@" + path));
+            Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(cur);
+        }
+    }
+
+    [Fact]
+    public void SecurityPolicy_DeniesPathPipePrefix()
+    {
+        var cur = Directory.GetCurrentDirectory();
+        try
+        {
+            Directory.SetCurrentDirectory(_testDir);
+            var path = "test_pipe.png";
+            using (var img = new MagickImage(MagickColors.Red, 10, 10))
+            {
+                img.Write(path, MagickFormat.Png);
+            }
+
+            var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage("|type " + path));
+            Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(cur);
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     [Theory]
     [InlineData(".jpg", "image.jpg", true)]
@@ -260,15 +454,26 @@ public sealed class ImageConverterTests : IDisposable
     }
 
     [Fact]
-    public async Task ConvertAsync_EvilMvgPayloadInPng_FailsCorruptInputAndDoesNotReadOrModifyTargetFile()
+    public async Task ConvertAsync_EvilMvgPayloadInPng_FailsCorruptInputAndSentinelNeverReadOrExfiltrated()
     {
         // Acceptance #7a: MVG payload saved as evil.png -> Fail(CorruptInput); no new files; file.txt not read
-        var secretPath = Path.Combine(_testDir, "file.txt");
-        var secretContent = "SECRET_USER_DATA_" + Guid.NewGuid().ToString("N");
-        await File.WriteAllTextAsync(secretPath, secretContent);
+        var sentinelPath = Path.Combine(_testDir, "sentinel.txt");
+        var sentinelContent = "SECRET_USER_DATA_" + Guid.NewGuid().ToString("N");
+        await File.WriteAllTextAsync(sentinelPath, sentinelContent);
 
+        var exfiltratedPath = Path.Combine(_testDir, "exfiltrated.txt");
+
+        // The MVG payload references the sentinel file by ABSOLUTE path and attempts to copy/render it
+        var normalizedSentinelPath = sentinelPath.Replace('\\', '/');
+        var normalizedExfilPath = exfiltratedPath.Replace('\\', '/');
         var evilPngPath = Path.Combine(_testDir, "evil.png");
-        var mvgPayload = "push graphic-context\nviewbox 0 0 640 480\nimage over 0,0 0,0 'file.txt'\npop graphic-context";
+        var mvgPayload = $"""
+            push graphic-context
+            viewbox 0 0 640 480
+            image over 0,0 0,0 '{normalizedSentinelPath}'
+            image over 0,0 0,0 '|copy "{normalizedSentinelPath}" "{normalizedExfilPath}"'
+            pop graphic-context
+            """;
         await File.WriteAllTextAsync(evilPngPath, mvgPayload, Encoding.UTF8);
 
         var filesBefore = Directory.GetFiles(_testDir).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -279,14 +484,107 @@ public sealed class ImageConverterTests : IDisposable
         Assert.False(result.Success);
         Assert.Equal(ConversionError.CorruptInput, result.Error);
 
-        // file.txt is untouched
-        var secretAfter = await File.ReadAllTextAsync(secretPath);
-        Assert.Equal(secretContent, secretAfter);
+        // Sentinel was never read into exfiltrated output, and sentinel is untouched
+        Assert.False(File.Exists(exfiltratedPath));
+        var sentinelAfter = await File.ReadAllTextAsync(sentinelPath);
+        Assert.Equal(sentinelContent, sentinelAfter);
 
         // No new output or temporary files in the directory
         var filesAfter = Directory.GetFiles(_testDir).ToHashSet(StringComparer.OrdinalIgnoreCase);
         Assert.Equal(filesBefore, filesAfter);
     }
+
+    [Fact]
+    public async Task ConvertAsync_CancellationMidConversion_ReachesDiscardPathAndLeavesNoTempFiles()
+    {
+        var sourcePath = Path.Combine(_testDir, "cancel_mid_test.png");
+        using (var img = new MagickImage(MagickColors.DodgerBlue, 50, 50))
+        {
+            await img.WriteAsync(sourcePath, MagickFormat.Png);
+        }
+
+        using var cts = new CancellationTokenSource();
+        // Cancel as soon as CreateTempPath has been called, ensuring ConvertAsync has issued a temp path
+        // and must execute the finally discard logic.
+        var trackingWriter = new TrackingOutputWriter(_writer, onTempCreated: () => cts.Cancel());
+
+        var request = ConversionRequest.Create(sourcePath, TargetCatalog.ImageJpg);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => _converter.ConvertAsync(request, trackingWriter, null, cts.Token));
+
+        Assert.True(trackingWriter.DiscardCalled, "Discard must be called when cancelled after temp creation.");
+        Assert.False(trackingWriter.CommitCalled, "Commit must not be called when cancelled.");
+
+        var tempFiles = Directory.GetFiles(_testDir, SafeOutputWriter.TempPrefix + "*");
+        Assert.Empty(tempFiles);
+    }
+
+    [Fact]
+    public async Task ConvertAsync_WhenOutputPathUnwritable_ReturnsOutputFailedNotCorruptInput()
+    {
+        var sourcePath = Path.Combine(_testDir, "write_fail_test.png");
+        using (var img = new MagickImage(MagickColors.Green, 20, 20))
+        {
+            await img.WriteAsync(sourcePath, MagickFormat.Png);
+        }
+
+        // Return a temp path inside a non-existent sub-folder to trigger write error
+        var unwritableWriter = new FakeUnwritableOutputWriter(_testDir);
+        var request = ConversionRequest.Create(sourcePath, TargetCatalog.ImageJpg);
+        var result = await _converter.ConvertAsync(request, unwritableWriter, null, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(ConversionError.OutputFailed, result.Error);
+        Assert.Equal("Couldn't save the converted file here.", result.Message);
+        Assert.True(unwritableWriter.DiscardCalled, "Discard must be called when write fails.");
+    }
+
+    [Fact]
+    public async Task ConvertAsync_TargetWithoutOutputExtension_ReturnsUnsupported()
+    {
+        var sourcePath = Path.Combine(_testDir, "no_ext_test.png");
+        using (var img = new MagickImage(MagickColors.Red, 10, 10))
+        {
+            await img.WriteAsync(sourcePath, MagickFormat.Png);
+        }
+
+        var noExtTarget = new ConversionTarget("image.noext", "NoExt", FileKind.Image, null, 1);
+        var request = ConversionRequest.Create(sourcePath, noExtTarget);
+        var result = await _converter.ConvertAsync(request, _writer, null, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(ConversionError.Unsupported, result.Error);
+    }
+
+
+    [Fact]
+    public async Task ConvertAsync_ImageExceeding30000Px_ReturnsUnsupportedWithImageTooLargeMessage()
+    {
+        var sourcePath = Path.Combine(_testDir, "huge_30001.bmp");
+        var origWidth = ResourceLimits.Width;
+        try
+        {
+            // Temporarily raise limit to create the test file
+            ResourceLimits.Width = 40000;
+            using (var img = new MagickImage(MagickColors.Red, 30001, 1))
+            {
+                await img.WriteAsync(sourcePath, MagickFormat.Bmp);
+            }
+        }
+        finally
+        {
+            ResourceLimits.Width = origWidth;
+        }
+
+        var request = ConversionRequest.Create(sourcePath, TargetCatalog.ImageJpg);
+        var result = await _converter.ConvertAsync(request, _writer, null, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(ConversionError.Unsupported, result.Error);
+        Assert.Equal("Image is too large.", result.Message);
+    }
+
 
     [Fact]
     public async Task ConvertAsync_AnimatedGifToWebp_PreservesAllFrames()
@@ -408,6 +706,52 @@ public sealed class ImageConverterTests : IDisposable
         {
             ResourceLimits.Area = origArea;
             ResourceLimits.Disk = origDisk;
+        }
+    }
+
+    private sealed class TrackingOutputWriter(IOutputWriter inner, Action onTempCreated) : IOutputWriter
+    {
+        public bool DiscardCalled { get; private set; }
+        public bool CommitCalled { get; private set; }
+
+        public string CreateTempPath(string sourcePath, string outputExtension)
+        {
+            var path = inner.CreateTempPath(sourcePath, outputExtension);
+            onTempCreated();
+            return path;
+        }
+
+        public string Commit(string tempPath, string sourcePath, string outputExtension, string label)
+        {
+            CommitCalled = true;
+            return inner.Commit(tempPath, sourcePath, outputExtension, label);
+        }
+
+        public bool Discard(string tempPath)
+        {
+            DiscardCalled = true;
+            return inner.Discard(tempPath);
+        }
+    }
+
+    private sealed class FakeUnwritableOutputWriter(string baseDir) : IOutputWriter
+    {
+        public bool DiscardCalled { get; private set; }
+
+        public string CreateTempPath(string sourcePath, string outputExtension)
+        {
+            return Path.Combine(baseDir, "non_existent_folder", ".~wc-test-unwritable" + outputExtension);
+        }
+
+        public string Commit(string tempPath, string sourcePath, string outputExtension, string label)
+        {
+            throw new InvalidOperationException("Commit should not be reached when write fails.");
+        }
+
+        public bool Discard(string tempPath)
+        {
+            DiscardCalled = true;
+            return true;
         }
     }
 }

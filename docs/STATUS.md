@@ -9,7 +9,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 03 | Hotkey trigger | DONE | Antigravity | Claude Code | PR #6 | Merged. 36 App tests (incl. STA RegisterHotKey); message-only window |
 | 04 | Wheel window | DONE | Claude Code | Antigravity | PR #4 | File-safety critical. Builds 0 warnings; user tests need WP-02 or WP-03 to open the wheel |
 | 05 | Tray + settings | TODO | Antigravity | Claude Code | | |
-| 06 | Image converter | REVIEW | Antigravity | Claude Code | wp-06-image | 32 xUnit tests pass (all acceptance tests pass). Magick.NET pinned 15.0.0 |
+| 06 | Image converter | REVIEW | Antigravity | Claude Code | wp-06-image | 48 xUnit tests pass (findings addressed, all acceptance tests pass). Magick.NET pinned 15.0.0 |
 | 07 | Media converter | TODO | Claude Code | Antigravity | | Needs FFmpeg for tests |
 | 08 | PDF operations | REVIEW | Claude Code | Antigravity | wp-08-pdf | 64 xUnit tests pass (CI Windows + Linux). PDFsharp pinned 6.2.4: 6.5.0+ is AGPL |
 | 09 | PDF reorder window | TODO | Antigravity | Claude Code | | Can start with a fake renderer |

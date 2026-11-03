@@ -34,7 +34,7 @@ Convert between image formats: targets `image.jpg`, `image.png`, `image.webp`, `
 - Don't use `System.Drawing` (Windows-only, breaks the net8.0 rule).
 
 ## Acceptance tests (xUnit unless marked User)
-| # | Test | Expected | Result (2026-11-02, Windows local) |
+| # | Test | Expected | Result (2026-11-03, Windows local) |
 |---|---|---|---|
 | 1 | PNG with alpha → JPG | Output exists, white background, source byte-identical before/after | PASS |
 | 2 | JPG → PNG/WebP/ICO | Valid files (re-open with Magick), ICO contains 6 sizes | PASS |
