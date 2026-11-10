@@ -9,7 +9,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 03 | Hotkey trigger | DONE | Antigravity | Claude Code | PR #6 | Merged. 36 App tests (incl. STA RegisterHotKey); message-only window |
 | 04 | Wheel window | DONE | Claude Code (Opus) | Antigravity | PR #4 | Merged. File-safety critical; user wheel tests passed |
 | 05 | Tray + settings | TODO | Claude Code (Opus) | Claude Code (Fable) | | |
-| 06 | Image converter | TODO | Antigravity; fixes Claude Code (Opus) | Claude Code (Sonnet, then Fable) | | First real conversion |
+| 06 | Image converter | REVIEW | Antigravity; fixes Claude Code (Opus) | Claude Code (Sonnet, then Fable) | PR #9 | First real conversion; review round 2 fixes in progress |
 | 07 | Media converter | TODO | Claude Code (Opus) | Claude Code (Fable) | | Needs FFmpeg for tests |
 | 08 | PDF operations | DONE | Claude Code (Opus) | Antigravity | PR #7 | Merged. PDFsharp pinned 6.2.4: 6.5.0+ is AGPL |
 | 09 | PDF reorder window | TODO | Claude Code (Opus) | Claude Code (Fable) | | Can start with a fake renderer |

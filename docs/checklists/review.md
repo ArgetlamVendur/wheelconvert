@@ -12,7 +12,7 @@ Reviewer: copy this into your review entry and tick or explain each line. Any ‚ù
 - [ ] Decoded/untrusted text (QR, file names) never executed or opened automatically.
 
 ## Contract
-- [ ] Only files listed in the work package's "Owns" section changed (plus `docs/STATUS.md`, `docs/reviews/`).
+- [ ] Only files listed in the work package's "Owns" section changed (plus the WP's own `docs/STATUS.md` row, `docs/reviews/`, and the Acceptance table of the WP file).
 - [ ] No change to `src/WheelConvert.Core/Contracts/`, `TargetCatalog.cs`, `Directory.Build.props` without an approved ADR.
 - [ ] Converter: returns `Fail(...)` instead of throwing; only `OperationCanceledException` escapes; error codes per CONTRACTS C1 table.
 - [ ] `CheckHealth()` is fast and never converts anything.

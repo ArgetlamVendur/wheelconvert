@@ -60,7 +60,7 @@ If you can't finish: set the WP to `BLOCKED: <reason>` in STATUS.md, commit what
 ## 5. Before you mark a WP as REVIEW
 - `dotnet build WheelConvert.sln -c Release` (the configuration CI uses): **0 warnings, 0 errors** (warnings are errors).
 - Core tests pass; App tests pass (`dotnet test tests/WheelConvert.App.Tests -c Release`).
-- No conflict markers: `git grep -n -E '^(<<<<<<<|=======|>>>>>>>)'` prints nothing.
+- No conflict markers: `git grep -n -E '^(<<<<<<<|=======|>>>>>>>)([[:space:]]|$)'` prints nothing (same pattern as CI).
 - Your WP's own tests pass (converters: add a test project `tests/WheelConvert.Converters.<Name>.Tests` with xUnit if you need packages).
 - Self-review against `docs/checklists/review.md`.
 - STATUS.md updated.
