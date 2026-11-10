@@ -1,6 +1,6 @@
 # WP-05: Tray icon, menu, notifications, start with Windows
 
-**Builder:** Antigravity · **Reviewer:** Claude Code · **Depends on:** WP-01 · **Risk:** low
+**Builder:** Claude Code (Opus) · **Reviewer:** Claude Code (Fable, fresh session) · **Depends on:** WP-01 · **Risk:** low
 
 ## Goal
 The app's only permanent UI: a tray icon with a menu, balloon notifications (ADR-007), and the "Start with Windows" option.

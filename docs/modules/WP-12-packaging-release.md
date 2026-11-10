@@ -1,6 +1,6 @@
 # WP-12: Packaging and release
 
-**Builder:** Antigravity · **Reviewer:** Claude Code · **Depends on:** all · **Risk:** medium (antivirus, signing)
+**Builder:** Claude Code (Opus) · **Reviewer:** Claude Code (Fable, fresh session) · **Depends on:** all · **Risk:** medium (antivirus, signing)
 
 ## Goal
 A downloadable, installable release on GitHub, with licences in order and the antivirus go/no-go answered.
@@ -13,7 +13,7 @@ A downloadable, installable release on GitHub, with licences in order and the an
 
 ## Requirements
 1. `LICENSE`: MIT, copyright holder as the user specifies.
-2. `THIRD-PARTY-NOTICES.md`: every package from ADR-010 with licence text links, **plus an inventory of the native libraries those packages bundle** (read each package's own notice/licence files): Magick.Native delegates (e.g. libheif/libde265 — believed LGPL; libraw; others), PDFium's FreeType (FTL credit), ICU, libjpeg-turbo, SkiaSharp. Record LGPL obligations (notice, licence text, relinking terms if statically linked) and ask the user before release if any are unclear. Note that FFmpeg is not distributed.
+2. `THIRD-PARTY-NOTICES.md`: every package from ADR-010 with licence text links, **plus an inventory of the native libraries those packages bundle** (read each package's own notice/licence files): Magick.Native delegates (e.g. libheif/libde265 — believed LGPL; libraw; others), PDFium's FreeType (FTL credit), ICU, libjpeg-turbo, SkiaSharp. Record LGPL obligations (notice, licence text, relinking terms if statically linked) and ask the user before release if any are unclear. **Build the inventory from the packages' own Notice/third-party files, never from PR descriptions or agent reports**: two WP-06 reports disagreed (about 38 vs 26 libraries; cairo is MPL-1.1, libraw and fribidi LGPL-2.1). PDFtoImage's PDFium ships no notice files (see ADR-010): take them from the pdfium-binaries project. Note that FFmpeg is not distributed.
 2a. Publish with `-p:IncludeNativeLibrariesForSelfExtract=true` (already in `build.yml`) so the native DLLs are inside the single file.
 3. `release.yml`: on tag `v*`: build, run tests, publish self-contained=false single-file win-x64, build the Inno Setup installer (`choco install innosetup` on the runner), attach `WheelConvert-Setup-<ver>.exe`, the portable zip and `SHA256SUMS.txt` to a GitHub Release (draft).
 4. Installer: per-user install to `%LOCALAPPDATA%\Programs\WheelConvert` (no admin), Start-menu shortcut, optional "Start with Windows", checks for the .NET 8 Desktop Runtime and links to it if missing, uninstaller removes the Run key and (asks before) the settings folder.

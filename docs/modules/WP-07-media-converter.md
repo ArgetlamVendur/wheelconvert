@@ -1,6 +1,6 @@
 # WP-07: Audio/video converter (FFmpeg)
 
-**Builder:** Claude Code · **Reviewer:** Antigravity · **Depends on:** WP-01 · **Risk:** medium
+**Builder:** Claude Code (Opus) · **Reviewer:** Claude Code (Fable, fresh session) · **Depends on:** WP-01 · **Risk:** medium
 
 ## Goal
 Audio and video conversions through the user's own FFmpeg (ADR-004).

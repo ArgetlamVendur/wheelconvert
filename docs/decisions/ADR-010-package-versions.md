@@ -1,7 +1,7 @@
 # ADR-010: Package version register (living document)
 Status: Living · Date: 2026-10-20
 
-The base was created without NuGet access, so **no versions are pinned yet.** The agent implementing each module:
+The base was created without NuGet access; versions are pinned per module as it lands. The agent implementing each module:
 1. Adds the package with the latest **stable** version (`dotnet add package <Name>`), never a preview.
 2. Records it below in the same PR, with the licence checked against ADR-005.
 3. Commits `packages.lock.json` (lock files are enabled per converter project).
