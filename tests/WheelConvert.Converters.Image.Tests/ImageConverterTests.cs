@@ -87,12 +87,28 @@ public sealed class ImageConverterTests : IDisposable
 
     // Port 1 on loopback: even with a rule deleted nothing leaves the machine. Without the rule the read fails
     // with MagickFileOpenErrorException instead, so each case fails when its own rule is removed.
+    // The Linux build of Magick.NET 15.0.0 registers no FTP coder: there the rule has nothing to deny and the
+    // read fails as a missing delegate. That branch is a tripwire like the URL/EPHEMERAL tests below.
     [Theory]
     [InlineData("http://127.0.0.1:1/test.png", MagickFormat.Http)]
     [InlineData("https://127.0.0.1:1/test.png", MagickFormat.Https)]
     [InlineData("ftp://127.0.0.1:1/test.png", MagickFormat.Ftp)]
     public void SecurityPolicy_DeniesNetworkCoders(string url, MagickFormat format)
     {
+        var coderRegistered = MagickFormatInfo.Create(format) is { SupportsReading: true };
+        if (OperatingSystem.IsWindows())
+        {
+            // The shipped platform: the coder must exist here, so the deny assertions below always run and
+            // deleting the rule fails this test.
+            Assert.True(coderRegistered, $"{format} coder expected in the Windows build.");
+        }
+
+        if (!coderRegistered)
+        {
+            Assert.Throws<MagickMissingDelegateErrorException>(() => new MagickImage(url));
+            return;
+        }
+
         var plain = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage(url));
         Assert.Contains("security policy", plain.Message, StringComparison.OrdinalIgnoreCase);
 
@@ -531,6 +547,45 @@ public sealed class ImageConverterTests : IDisposable
         Assert.Equal(ConversionError.OutputFailed, result.Error);
         Assert.Equal("Couldn't save the converted file here.", result.Message);
         Assert.True(unwritableWriter.DiscardCalled, "Discard must be called when write fails.");
+    }
+
+    [Fact]
+    public async Task ConvertAsync_WhenSourceCannotBeOpened_ReportsReadProblemNotOutputFailed()
+    {
+        var sourcePath = Path.Combine(_testDir, "locked_source.png");
+        using (var img = new MagickImage(MagickColors.Green, 20, 20))
+        {
+            await img.WriteAsync(sourcePath, MagickFormat.Png);
+        }
+
+        var request = ConversionRequest.Create(sourcePath, TargetCatalog.ImageJpg);
+        ConversionResult result;
+        if (OperatingSystem.IsWindows())
+        {
+            // Another program holding the file open without sharing.
+            using var exclusive = new FileStream(sourcePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            result = await _converter.ConvertAsync(request, _writer, null, CancellationToken.None);
+        }
+        else
+        {
+            // File locks are only advisory on Linux, so take away read permission instead.
+            File.SetUnixFileMode(sourcePath, UnixFileMode.None);
+            try
+            {
+                result = await _converter.ConvertAsync(request, _writer, null, CancellationToken.None);
+            }
+            finally
+            {
+                File.SetUnixFileMode(sourcePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+        }
+
+        Assert.False(result.Success);
+        Assert.NotEqual(ConversionError.OutputFailed, result.Error);
+        Assert.Equal(ConversionError.CorruptInput, result.Error);
+        Assert.Equal("Couldn't read the source file. It may be open in another app.", result.Message);
+        Assert.Empty(Directory.GetFiles(_testDir, SafeOutputWriter.TempPrefix + "*"));
+        Assert.Single(Directory.GetFiles(_testDir, "locked_source*"));
     }
 
     [Fact]

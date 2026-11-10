@@ -163,6 +163,14 @@ public sealed class ImageConverter : IConverter
         {
             return ConversionResult.Fail(ConversionError.OutputFailed, "Couldn't save the converted file here.");
         }
+        catch (SourceReadException)
+        {
+            // The source could not be opened (locked by another app, no permission, or removed after the check
+            // above). This is a read problem, so it must never be shown as "couldn't save".
+            return File.Exists(request.SourcePath)
+                ? ConversionResult.Fail(ConversionError.CorruptInput, "Couldn't read the source file. It may be open in another app.")
+                : ConversionResult.Fail(ConversionError.SourceMissing, "The source file was not found.");
+        }
         catch (MagickCorruptImageErrorException)
         {
             return ConversionResult.Fail(ConversionError.CorruptInput, "The image file is damaged or unreadable.");
@@ -185,6 +193,8 @@ public sealed class ImageConverter : IConverter
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or FileNotFoundException or DirectoryNotFoundException)
         {
+            // CONTRACTS C1: these come from IOutputWriter.CreateTempPath/Commit. Read-side I/O errors are turned
+            // into SourceReadException in ReadSource and handled above, so they cannot land here.
             return ConversionResult.Fail(ConversionError.OutputFailed, "Couldn't save the converted file here.");
         }
         catch (Exception)
@@ -211,7 +221,7 @@ public sealed class ImageConverter : IConverter
         // Read only the header (explicit format, no sniffing) and refuse oversized images before decoding.
         // This replaces matching ImageMagick's English "exceeds limit" text, which could change on any upgrade.
         // The native Width/Height limits set at start-up stay as the backstop.
-        var info = new MagickImageInfo(request.SourcePath, new MagickReadSettings { Format = inputFormat });
+        var info = ReadSource(() => new MagickImageInfo(request.SourcePath, new MagickReadSettings { Format = inputFormat }));
         if (info.Width > ResourceLimits.Width || info.Height > ResourceLimits.Height)
         {
             throw new ImageTooLargeException();
@@ -225,7 +235,7 @@ public sealed class ImageConverter : IConverter
             // Choice: For multi-frame inputs, only animated GIF -> WebP preserves all animation frames to produce
             // animated WebP. All other conversions (e.g. GIF -> JPG/PNG/ICO and multi-page TIFF) use only the first frame.
             var readSettings = new MagickReadSettings { Format = MagickFormat.Gif };
-            using var collection = new MagickImageCollection(request.SourcePath, readSettings);
+            using var collection = ReadSource(() => new MagickImageCollection(request.SourcePath, readSettings));
 
             cancellationToken.ThrowIfCancellationRequested();
             var quality = ResolveQuality(request, 85);
@@ -251,7 +261,7 @@ public sealed class ImageConverter : IConverter
             FrameCount = 1,
         };
 
-        using var image = new MagickImage(request.SourcePath, singleFrameSettings);
+        using var image = ReadSource(() => new MagickImage(request.SourcePath, singleFrameSettings));
         cancellationToken.ThrowIfCancellationRequested();
 
         // Respect EXIF rotation; keep metadata unchanged
@@ -291,6 +301,20 @@ public sealed class ImageConverter : IConverter
         else
         {
             throw new NotSupportedException($"Target '{request.Target.Id}' is not supported by ImageConverter.");
+        }
+    }
+
+    private static T ReadSource<T>(Func<T> read)
+    {
+        try
+        {
+            return read();
+        }
+        catch (Exception ex) when (ex is MagickBlobErrorException or IOException or UnauthorizedAccessException)
+        {
+            // Opening the source failed (a locked file raises MagickBlobErrorException "Permission denied").
+            // Decoder errors (corrupt data, limits, policy) are other types and reach the ConvertAsync handlers.
+            throw new SourceReadException(ex);
         }
     }
 
@@ -344,8 +368,9 @@ public sealed class ImageConverter : IConverter
         // (including ResourceLimits) so the policy is in force from the first image operation.
         //
         // Two rules are kept as defence in depth but cannot be exercised in Magick.NET 15.0.0 (probed 2026-11-10):
-        // - URL: policy matches coder names, and the URL module registers its coders as HTTP, HTTPS and FTP
-        //   (denied separately and tested); there is no coder named "URL", so deleting this rule changes nothing.
+        // - URL: policy matches coder names, and the URL module registers its coders as HTTP, HTTPS and, in the
+        //   Windows build only, FTP (denied separately and tested); there is no coder named "URL", so deleting
+        //   this rule changes nothing. The Linux build registers no FTP coder, so the FTP rule is inert there.
         // - EPHEMERAL: this build registers no EPHEMERAL coder; "ephemeral:x.png" is read as a plain PNG and the
         //   file is not deleted, with or without the rule. The old test passed with the rule deleted because its
         //   input was MVG, which the MVG rule blocked.
@@ -379,6 +404,8 @@ public sealed class ImageConverter : IConverter
     }
 
     private sealed class OutputWriteException(string message, Exception inner) : Exception(message, inner);
+
+    private sealed class SourceReadException(Exception inner) : Exception("The source file could not be read.", inner);
 
     private sealed class ImageTooLargeException : Exception;
 }
