@@ -1,6 +1,6 @@
 # WP-09: PDF reorder window
 
-**Builder:** Antigravity · **Reviewer:** Claude Code · **Depends on:** WP-01; WP-08's `IPdfPageRenderer` (can start against a fake renderer) · **Risk:** low
+**Builder:** Claude Code (Opus) · **Reviewer:** Claude Code (Fable, fresh session) · **Depends on:** WP-01; WP-08's `IPdfPageRenderer` (can start against a fake renderer) · **Risk:** low
 
 ## Goal
 When the user drops a PDF on "Reorder", show a window of page thumbnails they can drag into a new order (or remove), then return the order.

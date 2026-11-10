@@ -21,13 +21,13 @@ You have no memory of earlier sessions or of other agents. The repo is the only 
 
 ## 2. Claiming and finishing a WP
 1. In `docs/STATUS.md`, check the WP is `TODO` and all its dependencies are `DONE` (or explicitly marked "can start with stubs").
-2. Create branch `wp-NN-<short-name>` from the latest `main`. Set the WP to `IN PROGRESS (<your tool>)` in STATUS.md, commit that first.
+2. Create branch `wp-NN-<short-name>` from the latest `main` (or use the worktree branch you were given). Set the WP to `IN PROGRESS (<your model>)` in STATUS.md, commit that first.
 3. Restate to the user in 3–5 lines what you will build and which files you will touch. Wait for "go".
-4. Build only what the WP says. Touch only files in its **Owns** list (plus STATUS.md and `docs/reviews/`). **Shared, append-only files** any WP may add to (never edit others' lines; expect merge conflicts and resolve by keeping both): `WheelConvert.sln` (add your test project) and `docs/decisions/ADR-010-package-versions.md` (fill your row).
+4. Build only what the WP says. Touch only files in its **Owns** list (plus your own STATUS.md row, `docs/reviews/`, and the Acceptance table of your WP file). **Shared, append-only files** any WP may add to (never edit others' lines; expect merge conflicts and resolve by keeping both): `WheelConvert.sln` (add your test project) and `docs/decisions/ADR-010-package-versions.md` (fill your row).
 5. Run the checks in §5. Fill the WP's acceptance table: PASS / FAIL / NEEDS USER.
 6. Set the WP to `REVIEW` in STATUS.md, push, open a PR titled `WP-NN: <name>`. Stop.
 
-Reviewing: use `docs/checklists/review.md`. Write the result to `docs/reviews/WP-NN-<date>.md` as **APPROVE** or **CHANGES NEEDED** with numbered findings (file:line, why, fix). Don't rewrite the author's code; real problems go back to the author. The reviewer must not be the same tool that built the WP.
+Reviewing: use `docs/checklists/review.md`. Write the result to `docs/reviews/WP-NN-<date>.md` as **APPROVE** or **CHANGES NEEDED** with numbered findings (file:line, why, fix). Don't rewrite the author's code; real problems go back to the author. The reviewer must be a **different model** from the builder (default: Opus builds, Fable reviews) and must run in a **fresh session** that has not seen the build. Never APPROVE while CI on the PR is red. For each fix and safety rule the WP requires, revert it in a scratch run and confirm a test fails, or state why it can't be tested; restore the code afterwards.
 
 If you can't finish: set the WP to `BLOCKED: <reason>` in STATUS.md, commit what compiles, explain exactly where you stopped. Never leave the build broken on `main`.
 
@@ -58,8 +58,9 @@ If you can't finish: set the WP to `BLOCKED: <reason>` in STATUS.md, commit what
 ---
 
 ## 5. Before you mark a WP as REVIEW
-- `dotnet build` for every project you touched: **0 warnings, 0 errors** (warnings are errors).
-- Core tests pass.
+- `dotnet build WheelConvert.sln -c Release` (the configuration CI uses): **0 warnings, 0 errors** (warnings are errors).
+- Core tests pass; App tests pass (`dotnet test tests/WheelConvert.App.Tests -c Release`).
+- No conflict markers: `git grep -n -E '^(<<<<<<<|=======|>>>>>>>)'` prints nothing.
 - Your WP's own tests pass (converters: add a test project `tests/WheelConvert.Converters.<Name>.Tests` with xUnit if you need packages).
 - Self-review against `docs/checklists/review.md`.
 - STATUS.md updated.

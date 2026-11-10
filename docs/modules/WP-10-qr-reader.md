@@ -1,6 +1,6 @@
 # WP-10: QR reader
 
-**Builder:** Antigravity · **Reviewer:** Claude Code · **Depends on:** WP-01 · **Risk:** low
+**Builder:** Claude Code (Opus) · **Reviewer:** Claude Code (Fable, fresh session) · **Depends on:** WP-01 · **Risk:** low
 
 ## Goal
 `image.read-qr`: decode QR codes in an image file and return the text (ADR-009). WP-11 copies it to the clipboard and shows it in a notification.

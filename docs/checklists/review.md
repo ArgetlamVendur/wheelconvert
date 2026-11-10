@@ -25,7 +25,11 @@ Reviewer: copy this into your review entry and tick or explain each line. Any โ
 - [ ] Runs non-elevated (`asInvoker`).
 
 ## Quality
-- [ ] Builds with 0 warnings (`TreatWarningsAsErrors`).
+- [ ] **CI on the PR is green.** A red PR is never APPROVE.
+- [ ] Builds with 0 warnings in Release (`dotnet build WheelConvert.sln -c Release`), as CI does.
+- [ ] App tests pass: `dotnet test tests/WheelConvert.App.Tests -c Release`.
+- [ ] Reverted-fix check: for each required fix or safety rule, revert it in a scratch run and confirm a test fails (or record why it can't be tested). Restore afterwards.
+- [ ] Reviewer is a different model from the builder, in a fresh session (AGENTS ยง2).
 - [ ] Core tests pass: `dotnet run --project tests/WheelConvert.Core.Tests`.
 - [ ] Module's acceptance tests from its WP file: each marked PASS / FAIL / NEEDS USER.
 - [ ] New packages: licence checked (ADR-005), version recorded (ADR-010).
