@@ -33,8 +33,15 @@ Convert between image formats: targets `image.jpg`, `image.png`, `image.webp`, `
 - `MagickImage` is `IDisposable`: `using` everywhere.
 - Don't use `System.Drawing` (Windows-only, breaks the net8.0 rule).
 
+## Implementation notes (deviations from the requirements above)
+- **Policy API (req. 4):** the code loads the deny policy with `ConfigurationFiles` + `MagickNET.Initialize`, not `MagickNET.SetSecurityPolicy`. Same effect (a `policy.xml` in force before the first image call). Initialize also replaces the package's other default config files in one call. The deny list is wider than required: also TXT, HTTP, HTTPS, FTP, plus the path rules `@*` and `|*`.
+- **URL and EPHEMERAL rules are inert in Magick.NET 15.0.0** (probed 2026-11-10). No coder by either name is registered: the URL module's coders are HTTP/HTTPS/FTP, which are denied and tested. The rules stay as defence in depth. Two tripwire tests fail if an upgrade makes them reachable. See the comment in `InitializeSecurityAndLimits`.
+- **Image too large (req. 5/6):** the header is read first with `MagickImageInfo` (explicit format), and width or height above `ResourceLimits.Width/Height` returns `Fail(Unsupported, "Image is too large.")` before decoding. The native limits stay as a backstop.
+- **Write errors (req. 5):** only `MagickBlobErrorException`, `IOException` and `UnauthorizedAccessException` during write map to `OutputFailed`. Encoder errors go to the other handlers.
+- **Init failure:** `CheckHealth()` and `ConvertAsync` show the fixed text "Image library failed to load.". The exception detail is not logged: the frozen parameterless constructor gives the converter no `ILog` (follow-up).
+
 ## Acceptance tests (xUnit unless marked User)
-| # | Test | Expected | Result (2026-11-03, Windows local) |
+| # | Test | Expected | Result (2026-11-10, Windows local, Release) |
 |---|---|---|---|
 | 1 | PNG with alpha → JPG | Output exists, white background, source byte-identical before/after | PASS |
 | 2 | JPG → PNG/WebP/ICO | Valid files (re-open with Magick), ICO contains 6 sizes | PASS |

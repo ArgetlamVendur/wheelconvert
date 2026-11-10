@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
 using ImageMagick;
-using ImageMagick.Configuration;
 using WheelConvert.Core.Contracts;
 using WheelConvert.Core.Formats;
 using WheelConvert.Core.Output;
@@ -86,23 +85,67 @@ public sealed class ImageConverterTests : IDisposable
         Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public void SecurityPolicy_DeniesUrl_WhenFormatExplicitlySet()
+    // Port 1 on loopback: even with a rule deleted nothing leaves the machine. Without the rule the read fails
+    // with MagickFileOpenErrorException instead, so each case fails when its own rule is removed.
+    [Theory]
+    [InlineData("http://127.0.0.1:1/test.png", MagickFormat.Http)]
+    [InlineData("https://127.0.0.1:1/test.png", MagickFormat.Https)]
+    [InlineData("ftp://127.0.0.1:1/test.png", MagickFormat.Ftp)]
+    public void SecurityPolicy_DeniesNetworkCoders(string url, MagickFormat format)
     {
-        var settings = new MagickReadSettings { Format = MagickFormat.Http };
-        var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage("http://127.0.0.1/test.png", settings));
+        var plain = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage(url));
+        Assert.Contains("security policy", plain.Message, StringComparison.OrdinalIgnoreCase);
+
+        var settings = new MagickReadSettings { Format = format };
+        var explicitFormat = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage(url, settings));
+        Assert.Contains("security policy", explicitFormat.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SecurityPolicy_DeniesTxt_WhenFormatExplicitlySet()
+    {
+        // Without the TXT rule this read reaches the TXT decoder and fails as a corrupt image instead.
+        var path = Path.Combine(_testDir, "test_txt.txt");
+        File.WriteAllText(path, "# ImageMagick pixel enumeration: 1,1,255,srgb\n0,0: (255,0,0)  #FF0000  red");
+        var settings = new MagickReadSettings { Format = MagickFormat.Txt };
+        var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage(path, settings));
         Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void SecurityPolicy_DeniesEphemeral_InPolicyConfiguration()
+    public void SecurityPolicy_UrlRule_IsInert()
     {
-        // Ephemeral pseudo-protocol is disabled by policy
-        Assert.Contains(@"pattern=""EPHEMERAL""", ConfigurationFiles.Default.Policy.Data);
-        var path = Path.Combine(_testDir, "test_eph.mvg");
-        File.WriteAllText(path, "push graphic-context\nviewbox 0 0 10 10\npop graphic-context");
-        var ex = Assert.Throws<MagickPolicyErrorException>(() => new MagickImage("ephemeral:" + path));
-        Assert.Contains("security policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+        // Tripwire for the comment next to the URL rule in ImageConverter: no coder is named "URL", so a "url:"
+        // prefix is treated as part of a file name. If an upgrade adds a URL coder, this read starts to fail
+        // with a policy error; then replace this test with one that proves the rule blocks it.
+        var path = Path.Combine(_testDir, "url_probe.png");
+        using (var img = new MagickImage(MagickColors.Red, 4, 4))
+        {
+            img.Write(path, MagickFormat.Png);
+        }
+
+        var fileUri = new Uri(path).AbsoluteUri;
+        Assert.Throws<MagickBlobErrorException>(() => new MagickImage("url:" + fileUri));
+    }
+
+    [Fact]
+    public void SecurityPolicy_EphemeralRule_IsInert()
+    {
+        // Tripwire for the comment next to the EPHEMERAL rule in ImageConverter: this build has no EPHEMERAL
+        // coder, so "ephemeral:" is ignored and the PNG is read normally and not deleted. If an upgrade adds
+        // the coder, the read starts to fail with a policy error; then replace this test with a real deny test.
+        var path = Path.Combine(_testDir, "ephemeral_probe.png");
+        using (var img = new MagickImage(MagickColors.Red, 4, 4))
+        {
+            img.Write(path, MagickFormat.Png);
+        }
+
+        using (var read = new MagickImage("ephemeral:" + path))
+        {
+            Assert.Equal(4u, read.Width);
+        }
+
+        Assert.True(File.Exists(path));
     }
 
     [Fact]
@@ -188,56 +231,6 @@ public sealed class ImageConverterTests : IDisposable
             Directory.SetCurrentDirectory(cur);
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     [Theory]
     [InlineData(".jpg", "image.jpg", true)]
@@ -549,14 +542,34 @@ public sealed class ImageConverterTests : IDisposable
             await img.WriteAsync(sourcePath, MagickFormat.Png);
         }
 
-        var noExtTarget = new ConversionTarget("image.noext", "NoExt", FileKind.Image, null, 1);
+        // Same ID as a real target so CanConvert lets it through and the null-extension branch is reached.
+        var noExtTarget = new ConversionTarget(TargetCatalog.ImageJpg.Id, "NoExt", FileKind.Image, null, 1);
         var request = ConversionRequest.Create(sourcePath, noExtTarget);
         var result = await _converter.ConvertAsync(request, _writer, null, CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal(ConversionError.Unsupported, result.Error);
+        Assert.Equal("Target has no output extension.", result.Message);
     }
 
+    [Fact]
+    public async Task ConvertAsync_EncoderErrorDuringWrite_IsNotReportedAsOutputFailed()
+    {
+        // WebP cannot encode images wider than 16383 px: the encoder raises MagickImageErrorException while
+        // writing. That is not a file-system problem, so it must not become "Couldn't save the converted file here".
+        var sourcePath = Path.Combine(_testDir, "too_wide_for_webp.png");
+        using (var img = new MagickImage(MagickColors.Red, 20000, 2))
+        {
+            await img.WriteAsync(sourcePath, MagickFormat.Png);
+        }
+
+        var request = ConversionRequest.Create(sourcePath, TargetCatalog.ImageWebp);
+        var result = await _converter.ConvertAsync(request, _writer, null, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.NotEqual(ConversionError.OutputFailed, result.Error);
+        Assert.Empty(Directory.GetFiles(_testDir, SafeOutputWriter.TempPrefix + "*"));
+    }
 
     [Fact]
     public async Task ConvertAsync_ImageExceeding30000Px_ReturnsUnsupportedWithImageTooLargeMessage()
@@ -584,7 +597,6 @@ public sealed class ImageConverterTests : IDisposable
         Assert.Equal(ConversionError.Unsupported, result.Error);
         Assert.Equal("Image is too large.", result.Message);
     }
-
 
     [Fact]
     public async Task ConvertAsync_AnimatedGifToWebp_PreservesAllFrames()

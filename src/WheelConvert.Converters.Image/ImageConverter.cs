@@ -12,8 +12,11 @@ namespace WheelConvert.Converters.Image;
 /// </summary>
 public sealed class ImageConverter : IConverter
 {
+    // Shown to the user when the native library, the security policy or the limits could not be set up.
+    // The exception detail is not kept: the frozen parameterless constructor gives this class no ILog.
+    private const string LibraryFailedMessage = "Image library failed to load.";
+
     private static readonly bool IsSecurityInitialized;
-    private static readonly string? InitializationFailureReason;
 
     private static readonly HashSet<string> Inputs = new(StringComparer.Ordinal)
     {
@@ -43,10 +46,11 @@ public sealed class ImageConverter : IConverter
             InitializeSecurityAndLimits();
             IsSecurityInitialized = true;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
+            // Any failure here (native load, policy, limits) must leave the converter unusable rather than
+            // running without the security policy. CheckHealth() reports it as Missing.
             IsSecurityInitialized = false;
-            InitializationFailureReason = ex.Message;
         }
     }
 
@@ -80,7 +84,7 @@ public sealed class ImageConverter : IConverter
     {
         if (!IsSecurityInitialized)
         {
-            return ConverterHealth.Missing("Image converter security policy or limits could not be applied: " + (InitializationFailureReason ?? "Initialization failed."));
+            return ConverterHealth.Missing(LibraryFailedMessage);
         }
 
         try
@@ -91,7 +95,7 @@ public sealed class ImageConverter : IConverter
         }
         catch (Exception ex) when (ex is TypeInitializationException or DllNotFoundException or BadImageFormatException)
         {
-            return ConverterHealth.Missing("Image library failed to load.");
+            return ConverterHealth.Missing(LibraryFailedMessage);
         }
     }
 
@@ -113,7 +117,7 @@ public sealed class ImageConverter : IConverter
         {
             if (!IsSecurityInitialized)
             {
-                return ConversionResult.Fail(ConversionError.ToolMissing, InitializationFailureReason ?? "Security policy or limits could not be applied.");
+                return ConversionResult.Fail(ConversionError.ToolMissing, LibraryFailedMessage);
             }
 
             if (!File.Exists(request.SourcePath))
@@ -167,8 +171,7 @@ public sealed class ImageConverter : IConverter
         {
             return ConversionResult.Fail(ConversionError.Unsupported, "Image format or variant is not supported.");
         }
-        catch (MagickException ex) when (ex is MagickResourceLimitErrorException or MagickCacheErrorException ||
-                                        ex.Message.Contains("exceeds limit", StringComparison.OrdinalIgnoreCase))
+        catch (Exception ex) when (ex is ImageTooLargeException or MagickResourceLimitErrorException or MagickCacheErrorException)
         {
             return ConversionResult.Fail(ConversionError.Unsupported, "Image is too large.");
         }
@@ -203,6 +206,17 @@ public sealed class ImageConverter : IConverter
         string tempPath,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Read only the header (explicit format, no sniffing) and refuse oversized images before decoding.
+        // This replaces matching ImageMagick's English "exceeds limit" text, which could change on any upgrade.
+        // The native Width/Height limits set at start-up stay as the backstop.
+        var info = new MagickImageInfo(request.SourcePath, new MagickReadSettings { Format = inputFormat });
+        if (info.Width > ResourceLimits.Width || info.Height > ResourceLimits.Height)
+        {
+            throw new ImageTooLargeException();
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
 
         var isGifToWebp = inputFormat == MagickFormat.Gif && request.Target.Id == TargetCatalog.ImageWebp.Id;
@@ -286,8 +300,11 @@ public sealed class ImageConverter : IConverter
         {
             image.Write(tempPath, format);
         }
-        catch (Exception ex) when (ex is MagickException or IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is MagickBlobErrorException or IOException or UnauthorizedAccessException)
         {
+            // Only file-system failures mean "couldn't save here" (missing folder, read-only, file in use all
+            // raise MagickBlobErrorException). Encoder errors (limits, unsupported variants) reach the
+            // ConvertAsync handlers so the user sees the real reason.
             throw new OutputWriteException("Couldn't save the converted file here.", ex);
         }
     }
@@ -298,8 +315,11 @@ public sealed class ImageConverter : IConverter
         {
             collection.Write(tempPath, format);
         }
-        catch (Exception ex) when (ex is MagickException or IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is MagickBlobErrorException or IOException or UnauthorizedAccessException)
         {
+            // Only file-system failures mean "couldn't save here" (missing folder, read-only, file in use all
+            // raise MagickBlobErrorException). Encoder errors (limits, unsupported variants) reach the
+            // ConvertAsync handlers so the user sees the real reason.
             throw new OutputWriteException("Couldn't save the converted file here.", ex);
         }
     }
@@ -317,9 +337,19 @@ public sealed class ImageConverter : IConverter
 
     private static void InitializeSecurityAndLimits()
     {
-        // Security policy: disable risky coders to prevent ImageTragick and unauthorized file access
-        // Must be initialized before any native Magick calls (including ResourceLimits) so that
-        // ImageMagick loads the policy configuration when the native runtime initializes.
+        // Security policy: disable risky coders to prevent ImageTragick and unauthorized file access.
+        // Deviation from the WP-06 spec, which names MagickNET.SetSecurityPolicy: we pass the policy XML through
+        // ConfigurationFiles + MagickNET.Initialize instead. Both load a policy.xml; Initialize also replaces the
+        // package's other default configuration files in one call, and must run before any other native call
+        // (including ResourceLimits) so the policy is in force from the first image operation.
+        //
+        // Two rules are kept as defence in depth but cannot be exercised in Magick.NET 15.0.0 (probed 2026-11-10):
+        // - URL: policy matches coder names, and the URL module registers its coders as HTTP, HTTPS and FTP
+        //   (denied separately and tested); there is no coder named "URL", so deleting this rule changes nothing.
+        // - EPHEMERAL: this build registers no EPHEMERAL coder; "ephemeral:x.png" is read as a plain PNG and the
+        //   file is not deleted, with or without the rule. The old test passed with the rule deleted because its
+        //   input was MVG, which the MVG rule blocked.
+        // Tests SecurityPolicy_UrlRule_IsInert / _EphemeralRule_IsInert fail if an upgrade makes them reachable.
         var configFiles = ConfigurationFiles.Default;
         configFiles.Policy.Data = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <policymap>
@@ -349,4 +379,6 @@ public sealed class ImageConverter : IConverter
     }
 
     private sealed class OutputWriteException(string message, Exception inner) : Exception(message, inner);
+
+    private sealed class ImageTooLargeException : Exception;
 }
