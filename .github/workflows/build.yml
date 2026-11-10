@@ -40,6 +40,18 @@ jobs:
           }
           Write-Host "Safety grep passed ($($files.Count) files)."
 
+      - name: No merge-conflict markers
+        shell: pwsh
+        run: |
+          # git grep exits 1 when nothing matches; that is the passing case.
+          $hits = @(git grep -n -E '^(<<<<<<<|=======|>>>>>>>)( |$)')
+          if ($hits.Count -gt 0) {
+            foreach ($h in $hits) { Write-Host "::error::Conflict marker: $h" }
+            exit 1
+          }
+          Write-Host "No conflict markers."
+          exit 0
+
       - name: Restore
         run: dotnet restore WheelConvert.sln
 
@@ -48,6 +60,9 @@ jobs:
 
       - name: Core tests
         run: dotnet run --project tests/WheelConvert.Core.Tests -c Release --no-build
+
+      - name: App tests
+        run: dotnet test tests/WheelConvert.App.Tests -c Release --no-build
 
       - name: Converter tests (if any)
         shell: pwsh

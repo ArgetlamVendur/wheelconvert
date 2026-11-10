@@ -12,7 +12,7 @@ Reviewer: copy this into your review entry and tick or explain each line. Any โ
 - [ ] Decoded/untrusted text (QR, file names) never executed or opened automatically.
 
 ## Contract
-- [ ] Only files listed in the work package's "Owns" section changed (plus `docs/STATUS.md`, `docs/reviews/`).
+- [ ] Only files listed in the work package's "Owns" section changed (plus the WP's own `docs/STATUS.md` row, `docs/reviews/`, and the Acceptance table of the WP file).
 - [ ] No change to `src/WheelConvert.Core/Contracts/`, `TargetCatalog.cs`, `Directory.Build.props` without an approved ADR.
 - [ ] Converter: returns `Fail(...)` instead of throwing; only `OperationCanceledException` escapes; error codes per CONTRACTS C1 table.
 - [ ] `CheckHealth()` is fast and never converts anything.
@@ -25,7 +25,11 @@ Reviewer: copy this into your review entry and tick or explain each line. Any โ
 - [ ] Runs non-elevated (`asInvoker`).
 
 ## Quality
-- [ ] Builds with 0 warnings (`TreatWarningsAsErrors`).
+- [ ] **CI on the PR is green.** A red PR is never APPROVE.
+- [ ] Builds with 0 warnings in Release (`dotnet build WheelConvert.sln -c Release`), as CI does.
+- [ ] App tests pass: `dotnet test tests/WheelConvert.App.Tests -c Release`.
+- [ ] Reverted-fix check: for each required fix or safety rule, revert it in a scratch run and confirm a test fails (or record why it can't be tested). Restore afterwards.
+- [ ] Reviewer is a different model from the builder, in a fresh session (AGENTS ยง2).
 - [ ] Core tests pass: `dotnet run --project tests/WheelConvert.Core.Tests`.
 - [ ] Module's acceptance tests from its WP file: each marked PASS / FAIL / NEEDS USER.
 - [ ] New packages: licence checked (ADR-005), version recorded (ADR-010).

@@ -8,16 +8,16 @@ Each WP is self-contained: an agent can implement it with only this repo, the WP
 | [02](WP-02-shift-drag-trigger.md) | Shift-drag trigger (global mouse hook) | Claude Code → Antigravity | 01 | **High** |
 | [03](WP-03-hotkey-trigger.md) | Hotkey trigger | Antigravity → Claude Code | 01 | Low |
 | [04](WP-04-wheel-window.md) | Wheel window + drag/drop | Claude Code → Antigravity | 01 | **High** (file safety) |
-| [05](WP-05-tray-settings.md) | Tray icon, menu, notifications, start-up | Antigravity → Claude Code | 01 | Low |
-| [06](WP-06-image-converter.md) | Image converter (Magick.NET) | Antigravity → Claude Code | 01 | Medium |
-| [07](WP-07-media-converter.md) | Audio/video converter (FFmpeg) | Claude Code → Antigravity | 01 | Medium |
+| [05](WP-05-tray-settings.md) | Tray icon, menu, notifications, start-up | Opus → Fable | 01 | Low |
+| [06](WP-06-image-converter.md) | Image converter (Magick.NET) | Antigravity (fixes: Opus) → Sonnet, Fable | 01 | Medium |
+| [07](WP-07-media-converter.md) | Audio/video converter (FFmpeg) | Opus → Fable | 01 | Medium |
 | [08](WP-08-pdf-operations.md) | PDF operations + page renderer | Claude Code → Antigravity | 01 | Medium |
-| [09](WP-09-pdf-reorder-window.md) | PDF reorder window | Antigravity → Claude Code | 01, 08 (renderer) | Low |
-| [10](WP-10-qr-reader.md) | QR reader | Antigravity → Claude Code | 01 | Low |
+| [09](WP-09-pdf-reorder-window.md) | PDF reorder window | Opus → Fable | 01, 08 (renderer) | Low |
+| [10](WP-10-qr-reader.md) | QR reader | Opus → Fable | 01 | Low |
 | [11](WP-11-integration.md) | Integration: wiring, coordinator, fallback, clean-up | Claude Code → Antigravity | 01; stubs of 02–10 suffice | **High** |
-| [12](WP-12-packaging-release.md) | Packaging, release, licences, Defender check | Antigravity → Claude Code | all | Medium |
+| [12](WP-12-packaging-release.md) | Packaging, release, licences, Defender check | Opus → Fable | all | Medium |
 
-Reviewer must be a different model family from the builder.
+Remaining WPs use Claude Code only: Opus builds, Fable reviews in a fresh session (AGENTS.md §2).
 
 ## Suggested order
 1. **WP-11** (wiring) + **WP-05** (tray) + **WP-03** (hotkey) + **WP-04** (wheel) → the app runs and the wheel opens.
