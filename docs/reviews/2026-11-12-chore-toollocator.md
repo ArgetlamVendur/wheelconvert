@@ -105,3 +105,80 @@ Only `src/WheelConvert.Core/Infrastructure/ToolLocator.cs` and `tests/WheelConve
 - Machine-scope winget installs into `%ProgramFiles%\WinGet\Links`: no such install on this PC.
 - The real app flow (tray → Check again) after a late FFmpeg install: needs WP-07.
 - PR #12 (WP-07) itself.
+
+---
+
+# Follow-up review (8a3e6bf)
+
+Date: 2026-11-12 · Reviewer: Claude Code (Fable 5.2), fresh session, did not see the build · Builder: Claude Sonnet 5.5 (per commit trailer) · Reviewed commit: `8a3e6bf` against `194dbc7` (the only other commit in between, `b358554`, adds the review file above and nothing else)
+
+## Verdict: APPROVE
+
+No blocking findings. The commit does F1, F2 and F3 from the review above and nothing else. Two non-blocking notes below.
+
+Still not verified by anyone: the real flow "install FFmpeg while WheelConvert runs, tray → Check again" (needs WP-07), and a real registry read that actually throws (cannot be provoked on this PC; the test injects the exception instead).
+
+## CI (run: `gh pr checks 13`, `gh run list`, `gh run view 43166355842 --log`)
+
+Both runs are on head `8a3e6bf`.
+
+| Job | push run 43166349050 | pull-request run 43166355842 |
+|---|---|---|
+| `windows` | pass | pass |
+| `core-linux` | pass | pass |
+
+Linux log: Core 69/69, both new tests listed as PASS.
+
+## Local runs (Windows, this PC)
+
+- `dotnet build WheelConvert.sln -c Release` (also once with `--no-incremental`): 0 warnings, 0 errors.
+- `dotnet run --project tests/WheelConvert.Core.Tests -c Release`: 69/69 passed, exit code 0 (was 67; +2 new tests).
+- `dotnet test tests/WheelConvert.App.Tests -c Release`: 87 passed, 0 failed.
+- Conflict-marker grep: prints nothing.
+
+## Reverted-fix check (run)
+
+Each change was made to `src/WheelConvert.Core/Infrastructure/ToolLocator.cs` in the working tree, the Core tests were run in Release, and the file was restored with `git checkout --`. `git status` was clean afterwards and the suite was back to 69/69.
+
+| # | Change made | Result |
+|---|---|---|
+| F1 | De-duplication removed (`seen.Add` result ignored, every folder yielded) | **FAIL** `ToolLocator_SearchDirectories_AreDeduplicatedAndTrimmed_InSourceOrder` (expected 2, was 6); 68/69, exit 1 |
+| F2 | Catch reduced to `SecurityException` only | **FAIL** `ToolLocator_ReadRegistryPath_SwallowsRegistryExceptions` (UnauthorizedAccessException escapes); 68/69, exit 1 |
+| F2b | Only `IOException` removed from the catch | **FAIL** same test (IOException escapes) |
+| F2c | Only `UnauthorizedAccessException` removed from the catch | **FAIL** same test |
+| M7 | Quote trimming of entries removed (old finding 6) | **FAIL** the F1 test (expected 2, was 3) |
+| M8 | Trailing-separator normalisation removed | **FAIL** the F1 test (expected 2, was 4) |
+| M9 | De-dup comparer forced to case-sensitive on Windows | None, 69/69 pass (note 1) |
+
+So the new tests are not tautological: F1 and each of the two new exception types are individually pinned, and the F1 test also closes old finding 6.
+
+## Behaviour of the `Find` restructuring (read, line by line against `194dbc7`)
+
+- The body moved into `SearchDirectories` (`ToolLocator.cs:92-120`) is the old loop header unchanged: same `SplitPath` calls, same `%VAR%` expansion on user and machine entries only, same concatenation order (process → user → machine → extra), same comparer, same `Trim().Trim('"')`, same empty-entry skip, same trailing-separator key. The only edit is `if (!seen.Add(..)) continue;` becoming `if (seen.Add(..)) yield return dir;`, which is equivalent.
+- It is an iterator, so it stays lazy: `Find` (`:67`) still stops at the first hit and nothing is listed or expanded earlier than before. No extra cost for `CheckHealth()`.
+- The configured-path branch (`:58-61`) and the public method (`:15-45`) are untouched: a configured path that does not exist still returns null, before any registry read or directory listing. The existing test for this still passes.
+- `ReadRegistryPath(EnvironmentVariableTarget)` (`:125-126`) now delegates to an internal overload taking a `Func<string?>`; same call, wider catch (`:134`), still returns null. It is still only called inside `if (OperatingSystem.IsWindows())` (`:32`). Linux CI builds and passes.
+- No other exception path was added; the per-folder `ArgumentException` guard (`:72-79`) is unchanged.
+
+## Scope and contract (read)
+
+- Files changed: `ToolLocator.cs`, `MiscTests.cs`, `docs/decisions/ADR-004-ffmpeg-not-bundled.md` (one line), `src/WheelConvert.Core/Settings/AppSettings.cs` (one XML comment). No `.csproj`, `.props` or `.sln` change, so no new packages.
+- No frozen file touched (AGENTS §4.1): nothing under `Core/Contracts/`, not `TargetCatalog.cs`, `Directory.Build.props`, `docs/CONTRACTS.md`, `IWheelView.cs` or `CompositionRoot.cs`. The public `Find` signature is unchanged; the two additions are `internal`.
+- F3 wording matches the code: `ADR-004:8` now reads setting (used alone if set) → process PATH → user PATH → machine PATH (registry, Windows) → `%LOCALAPPDATA%\Microsoft\WinGet\Links` → `%ProgramFiles%\WinGet\Links`, which is the order in `ToolLocator.cs:98-101` and `:149-160`. `AppSettings.cs:42` is a comment-only change; no behaviour change.
+- Safety checklist: no user-file handling, no drag-drop, no hooks, no process launch, no P/Invoke. Lines pass or do not apply. No dead code, no TODOs, no user-facing text.
+
+## Findings
+
+1. **Not blocking. `tests/WheelConvert.Core.Tests/MiscTests.cs:226-242`: the case-insensitive part of de-duplication on Windows is not pinned.**
+   Why: with the comparer forced to `StringComparer.Ordinal` (M9) all 69 tests pass, because the test repeats each folder in identical casing. Effect of a regression would be extra folder probes only, never a wrong result.
+   Fix: optional. Add one entry in different casing (e.g. `a.Path.ToUpperInvariant()`) and assert on the count only when `OperatingSystem.IsWindows()`.
+
+2. **Not blocking, information only. `ToolLocator.cs:128-140`: the F2 test proves the wrapper swallows the three exception types, not that the real registry read can only throw those.**
+   Why: a real failing registry read cannot be produced in a test. The three types are the documented ones for registry access, so this is as far as a test can go.
+   Fix: none needed.
+
+## Not checked
+
+- Linux on a real machine (CI only).
+- A real registry read that throws.
+- The real app flow after a late FFmpeg install (needs WP-07), and PR #12 itself.
