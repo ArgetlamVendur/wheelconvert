@@ -8,7 +8,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 02 | Shift-drag trigger | DONE | Claude Code (Opus) | Antigravity | PR #8 | Merged. 9 GestureStateMachine tests; Explorer tests passed. In Shift-drag mode the hotkey is off unless the hook fails |
 | 03 | Hotkey trigger | DONE | Antigravity | Claude Code | PR #6 | Merged. 36 App tests (incl. STA RegisterHotKey); message-only window |
 | 04 | Wheel window | DONE | Claude Code (Opus) | Antigravity | PR #4 | Merged. File-safety critical; user wheel tests passed |
-| 05 | Tray + settings | TODO | Claude Code (Opus) | Claude Code (Fable) | | |
+| 05 | Tray + settings | DONE | Claude Code (Opus) | Claude Code (Fable) | PR #11 | Merged. 87 App tests; user tray tests passed (notifications need Do not disturb off) |
 | 06 | Image converter | REVIEW | Antigravity, then Claude Code (Opus) for re-review fixes, then Claude Code (Fable) for the Re-review 2 fix (N1 + source-read mapping) | Claude Code (Sonnet) ×2, Fable ×1; next: a model other than Fable, fresh session, only the last fix commit | PR #9 | Re-review 2 N1 fixed (FTP test is coder-aware); unreadable source no longer reported as OutputFailed; 54 xUnit tests pass (Release). Magick.NET pinned 15.0.0. User tests 7 (HEIC) and 8 pending |
 | 07 | Media converter | TODO | Claude Code (Opus) | Claude Code (Fable) | | Needs FFmpeg for tests |
 | 08 | PDF operations | DONE | Claude Code (Opus) | Antigravity | PR #7 | Merged. PDFsharp pinned 6.2.4: 6.5.0+ is AGPL |
