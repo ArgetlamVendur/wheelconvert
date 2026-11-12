@@ -64,28 +64,8 @@ public static class ToolLocator
             ? new[] { toolName + ".exe", toolName }
             : new[] { toolName };
 
-        var directories = SplitPath(processPath)
-            .Concat(SplitPath(userPath).Select(Environment.ExpandEnvironmentVariables))
-            .Concat(SplitPath(machinePath).Select(Environment.ExpandEnvironmentVariables))
-            .Concat(extraDirectories);
-
-        var seen = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
-
-        foreach (var raw in directories)
+        foreach (var dir in SearchDirectories(processPath, userPath, machinePath, extraDirectories))
         {
-            var dir = raw.Trim().Trim('"');
-            if (dir.Length == 0)
-            {
-                continue;
-            }
-
-            // Compare without trailing separators so "C:\Tools" and "C:\Tools\" are probed once.
-            var key = dir.Length > 1 ? dir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : dir;
-            if (!seen.Add(key.Length == 0 ? dir : key))
-            {
-                continue;
-            }
-
             foreach (var name in fileNames)
             {
                 string candidate;
@@ -108,18 +88,53 @@ public static class ToolLocator
         return null;
     }
 
+    /// <summary>The ordered, trimmed, de-duplicated folders that are probed (internal so tests can assert on it).</summary>
+    internal static IEnumerable<string> SearchDirectories(
+        string? processPath,
+        string? userPath,
+        string? machinePath,
+        IEnumerable<string> extraDirectories)
+    {
+        var directories = SplitPath(processPath)
+            .Concat(SplitPath(userPath).Select(Environment.ExpandEnvironmentVariables))
+            .Concat(SplitPath(machinePath).Select(Environment.ExpandEnvironmentVariables))
+            .Concat(extraDirectories);
+
+        var seen = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+
+        foreach (var raw in directories)
+        {
+            var dir = raw.Trim().Trim('"');
+            if (dir.Length == 0)
+            {
+                continue;
+            }
+
+            // Compare without trailing separators so "C:\Tools" and "C:\Tools\" are probed once.
+            var key = dir.Length > 1 ? dir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : dir;
+            if (seen.Add(key.Length == 0 ? dir : key))
+            {
+                yield return dir;
+            }
+        }
+    }
+
     private static string[] SplitPath(string? value) =>
         (value ?? string.Empty).Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    private static string? ReadRegistryPath(EnvironmentVariableTarget target)
+    private static string? ReadRegistryPath(EnvironmentVariableTarget target) =>
+        ReadRegistryPath(() => Environment.GetEnvironmentVariable("PATH", target));
+
+    internal static string? ReadRegistryPath(Func<string?> read)
     {
         try
         {
-            return Environment.GetEnvironmentVariable("PATH", target);
+            return read();
         }
-        catch (System.Security.SecurityException)
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
         {
-            // Locked-down machines may deny registry reads; the process PATH and Links folders still apply.
+            // Locked-down machines may deny registry reads (or a key may vanish mid-read); the process PATH
+            // and Links folders still apply, so this must never surface to CheckHealth().
             return null;
         }
     }

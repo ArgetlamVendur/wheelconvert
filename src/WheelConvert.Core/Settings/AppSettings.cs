@@ -39,7 +39,7 @@ public sealed record AppSettings
 
     public bool StartWithWindows { get; init; }
 
-    /// <summary>Optional explicit path to ffmpeg.exe. Null = search PATH and the winget links folder.</summary>
+    /// <summary>Optional explicit path to ffmpeg.exe. Null = search the process, user and machine PATH, then the winget Links folders.</summary>
     public string? FfmpegPath { get; init; }
 
     /// <summary>Target IDs from TargetCatalog the user has hidden from the wheel.</summary>

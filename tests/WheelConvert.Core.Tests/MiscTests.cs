@@ -224,6 +224,33 @@ public static class MiscTests
     }
 
     [Test]
+    public static void ToolLocator_SearchDirectories_AreDeduplicatedAndTrimmed_InSourceOrder()
+    {
+        using var a = new TempDir();
+        using var b = new TempDir();
+        var sep = Path.PathSeparator.ToString();
+        var slash = Path.DirectorySeparatorChar.ToString();
+        var process = "\"" + a.Path + "\"" + sep + a.Path + slash + sep + " ";
+        var user = a.Path + sep + b.Path;
+        var machine = b.Path + slash;
+
+        var dirs = ToolLocator.SearchDirectories(process, user, machine, [a.Path]).ToArray();
+
+        Assert.Equal(2, dirs.Length);
+        Assert.Equal(a.Path, dirs[0]);
+        Assert.Equal(b.Path, dirs[1]);
+    }
+
+    [Test]
+    public static void ToolLocator_ReadRegistryPath_SwallowsRegistryExceptions()
+    {
+        Assert.Equal("x", ToolLocator.ReadRegistryPath(() => "x"));
+        Assert.True(ToolLocator.ReadRegistryPath(() => throw new System.Security.SecurityException()) is null);
+        Assert.True(ToolLocator.ReadRegistryPath(() => throw new UnauthorizedAccessException()) is null);
+        Assert.True(ToolLocator.ReadRegistryPath(() => throw new IOException()) is null);
+    }
+
+    [Test]
     public static void FileLog_WritesLines_AndRolls()
     {
         using var dir = new TempDir();
