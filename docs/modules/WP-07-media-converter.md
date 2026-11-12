@@ -50,6 +50,7 @@ Audio and video conversions through the user's own FFmpeg (ADR-004).
 | 7 | User | `winget install Gyan.FFmpeg`, tray → Check again | Segments appear without restart | NEEDS USER |
 | 8 | User | MOV from phone → MP4; MP4 → GIF; MP4 → Audio | Plays correctly | NEEDS USER |
 | 9 | Agent (xUnit, skipped if no ffmpeg) | testsrc+sine 1280×720 MKV → MP4, WebM, GIF, Audio | Valid outputs or `ToolMissing`; GIF is 720 wide (filter reached FFmpeg intact) | PASS with real FFmpeg 9.0.2 (`RealFfmpegTests.Test_video_*`) |
+| 10 | Agent (xUnit) | Text inside the file (tags, concat script named .mp3, lone-surrogate name, truncated stderr) must not decide the error | Error from FFmpeg's closing lines only; encoder named only if requested | PASS (`MediaConverterTests` R1 tests; real FFmpeg: `RealFfmpegTests.Concat_script_*`, `File_name_with_a_lone_surrogate_*`) |
 
 ## Start prompt
 ```

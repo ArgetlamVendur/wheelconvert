@@ -182,7 +182,23 @@ public sealed class MediaConverterTests : IDisposable
         Assert.Equal(ConversionError.ToolFailed, result.Error);
     }
 
-    // ---- Untrusted text in stderr (review finding 1) ----
+    // ---- Untrusted text in stderr (review finding 1, re-review R1) ----
+    // Tails below are real FFmpeg output shapes (FFmpeg 9.0.2, captured for the review and again for this fix).
+
+    private static readonly string[] Mp3Encoder = ["libmp3lame"];
+
+    private const string NoStreamsTail =
+        "Stream map '' matches no streams.\n" +
+        "To ignore this, add a trailing '?' to the map.\n" +
+        "Failed to set value '0:a:0' for option 'map': Invalid argument\n" +
+        "Error parsing options for output file out.mp3.\n" +
+        "Error opening output files: Invalid argument\n";
+
+    private static string MissingEncoderTail(string name, string kind = "aost") =>
+        $"[{kind}#0:0 @ 00000244fae69d40] Unknown encoder '{name}'\n" +
+        $"[{kind}#0:0 @ 00000244fae69d40] Error selecting an encoder\n" +
+        "Error opening output file out.mp3.\n" +
+        "Error opening output files: Encoder not found\n";
 
     private static string Dump(string folder, string titleTag) =>
         $"Input #0, matroska,webm, from '{folder}\\clip.mkv':\n" +
@@ -199,9 +215,8 @@ public sealed class MediaConverterTests : IDisposable
     public void Title_tag_text_does_not_decide_the_error(string titleTag)
     {
         var folder = Path.Combine(_folder.Path, "videos");
-        var stderr = Dump(folder, titleTag) + "Stream map '0:a:0' matches no streams.\nError opening output files: Invalid argument\n";
 
-        var result = MediaConverter.MapFailure(stderr, Path.Combine(folder, "clip.mkv"), Path.Combine(folder, "clip.wctmp.mp3"));
+        var result = MediaConverter.MapFailure(Dump(folder, titleTag) + NoStreamsTail, Path.Combine(folder, "clip.mkv"), Mp3Encoder);
 
         Assert.Equal(ConversionError.Unsupported, result.Error);
         Assert.Equal("This file has no audio track.", result.Message);
@@ -211,9 +226,9 @@ public sealed class MediaConverterTests : IDisposable
     public void Title_tag_text_cannot_turn_a_generic_failure_into_another_error()
     {
         var folder = Path.Combine(_folder.Path, "videos");
-        var stderr = Dump(folder, "Unknown encoder 'pwned'") + "Conversion failed!\n";
+        var stderr = Dump(folder, "Unknown encoder 'libmp3lame'") + "Conversion failed!\n";
 
-        var result = MediaConverter.MapFailure(stderr, Path.Combine(folder, "clip.mkv"), null);
+        var result = MediaConverter.MapFailure(stderr, Path.Combine(folder, "clip.mkv"), Mp3Encoder);
 
         Assert.Equal(ConversionError.ToolFailed, result.Error);
         Assert.Equal("FFmpeg could not convert this file.", result.Message);
@@ -225,15 +240,13 @@ public sealed class MediaConverterTests : IDisposable
     public void Folder_name_text_does_not_decide_the_error(string folderName)
     {
         var folder = Path.Combine(_folder.Path, folderName);
-        var source = Path.Combine(folder, "clip.mkv");
         var temp = Path.Combine(folder, "clip.wctmp.mp3");
-        // FFmpeg echoes the output path in "Output #0" and in its error line; both are outside the input dump.
+        // FFmpeg echoes the output path in "Output #0" and in its error lines.
         var stderr = Dump(folder, "plain") +
-            "Stream map '0:a:0' matches no streams.\n" +
             $"Output #0, mp3, to '{temp}':\n" +
-            $"Error opening output {temp}: Invalid argument\n";
+            NoStreamsTail.Replace("out.mp3", temp, StringComparison.Ordinal);
 
-        var result = MediaConverter.MapFailure(stderr, source, temp);
+        var result = MediaConverter.MapFailure(stderr, Path.Combine(folder, "clip.mkv"), Mp3Encoder);
 
         Assert.Equal(ConversionError.Unsupported, result.Error);
     }
@@ -242,9 +255,8 @@ public sealed class MediaConverterTests : IDisposable
     public void Folder_name_text_does_not_decide_the_error_when_ffmpeg_prints_only_the_folder()
     {
         var folder = Path.Combine(_folder.Path, "Invalid data found");
-        var stderr = $"Conversion failed in {folder}\n";
 
-        var result = MediaConverter.MapFailure(stderr, Path.Combine(folder, "clip.mkv"), Path.Combine(folder, "clip.wctmp.mp3"));
+        var result = MediaConverter.MapFailure($"Conversion failed in {folder}\n", Path.Combine(folder, "clip.mkv"), Mp3Encoder);
 
         Assert.Equal(ConversionError.ToolFailed, result.Error);
     }
@@ -252,35 +264,69 @@ public sealed class MediaConverterTests : IDisposable
     [Fact]
     public void Real_corrupt_input_diagnostic_is_corrupt_input()
     {
-        var folder = Path.Combine(_folder.Path, "audio");
-        var source = Path.Combine(folder, "bad.wav");
-        var stderr = $"{source}: Invalid data found when processing input\n";
+        var source = Path.Combine(_folder.Path, "bad.wav");
+        var stderr =
+            "[in#0 @ 000002118b862a80] Error opening input: Invalid data found when processing input\n" +
+            $"Error opening input file {source}.\n" +
+            "Error opening input files: Invalid data found when processing input\n";
 
-        var result = MediaConverter.MapFailure(stderr, source, Path.Combine(folder, "bad.wctmp.flac"));
+        var result = MediaConverter.MapFailure(stderr, source, Mp3Encoder);
 
         Assert.Equal(ConversionError.CorruptInput, result.Error);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Older_ffmpeg_corrupt_input_line_is_matched_against_the_exact_source_path(bool forwardSlashes)
+    {
+        var source = Path.Combine(_folder.Path, "bad.wav");
+        var printed = forwardSlashes ? source.Replace('\\', '/') : source;
+
+        var ours = MediaConverter.MapFailure($"{printed}: Invalid data found when processing input\n", source, Mp3Encoder);
+        var other = MediaConverter.MapFailure($"{printed}x: Invalid data found when processing input\n", source, Mp3Encoder);
+
+        Assert.Equal(ConversionError.CorruptInput, ours.Error);
+        Assert.Equal(ConversionError.ToolFailed, other.Error);
+    }
+
     [Fact]
-    public void Real_missing_encoder_diagnostic_is_tool_missing_with_the_encoder_name()
+    public void Real_missing_encoder_diagnostic_is_tool_missing_with_the_requested_encoder_name()
     {
         var folder = Path.Combine(_folder.Path, "audio");
-        var source = Path.Combine(folder, "tone.wav");
-        var stderr = Dump(folder, "plain") + "[aost#0:0 @ 0x1] Unknown encoder 'libvorbis'\n[aost#0:0 @ 0x1] Error selecting an encoder\nError opening output file.\n";
 
-        var result = MediaConverter.MapFailure(stderr, source, Path.Combine(folder, "tone.wctmp.ogg"));
+        var result = MediaConverter.MapFailure(Dump(folder, "plain") + MissingEncoderTail("libvorbis"), Path.Combine(folder, "tone.wav"), ["libvorbis"]);
 
         Assert.Equal(ConversionError.ToolMissing, result.Error);
         Assert.Equal("Your FFmpeg build lacks the libvorbis encoder.", result.Message);
     }
 
     [Fact]
-    public void Encoder_name_outside_the_list_is_never_echoed()
+    public void Missing_video_encoder_is_tool_missing_when_one_of_several_requested_encoders()
     {
-        var result = MediaConverter.MapFailure("Unknown encoder 'pwned'\n", Path.Combine(_folder.Path, "a.wav"), null);
+        var result = MediaConverter.MapFailure(MissingEncoderTail("libx264", "vost"), Path.Combine(_folder.Path, "a.mkv"), ["libx264", "aac"]);
 
         Assert.Equal(ConversionError.ToolMissing, result.Error);
-        Assert.DoesNotContain("pwned", result.Message, StringComparison.Ordinal);
+        Assert.Equal("Your FFmpeg build lacks the libx264 encoder.", result.Message);
+    }
+
+    [Theory]
+    [InlineData("pwned")]
+    [InlineData("libx264")]
+    public void Encoder_that_was_not_requested_is_never_echoed_or_reported(string name)
+    {
+        var result = MediaConverter.MapFailure(MissingEncoderTail(name), Path.Combine(_folder.Path, "a.wav"), Mp3Encoder);
+
+        Assert.Equal(ConversionError.ToolFailed, result.Error);
+        Assert.DoesNotContain(name, result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Progress_lines_after_the_diagnostics_do_not_hide_them()
+    {
+        var result = MediaConverter.MapFailure(MissingEncoderTail("libmp3lame") + "out_time=00:00:00.000000\nprogress=end\n", Path.Combine(_folder.Path, "a.wav"), Mp3Encoder);
+
+        Assert.Equal(ConversionError.ToolMissing, result.Error);
     }
 
     [Fact]
@@ -288,10 +334,115 @@ public sealed class MediaConverterTests : IDisposable
     {
         var folder = Path.Combine(_folder.Path, "videos");
 
-        var result = MediaConverter.MapFailure(Dump(folder, "plain") + "Stream map '0:a:0' matches no streams.\n", Path.Combine(folder, "clip.mkv"), null);
+        var result = MediaConverter.MapFailure(Dump(folder, "plain") + NoStreamsTail, Path.Combine(folder, "clip.mkv"), Mp3Encoder);
 
         Assert.Equal(ConversionError.Unsupported, result.Error);
         Assert.Equal("This file has no audio track.", result.Message);
+    }
+
+    // ---- Re-review R1: the three demonstrated bypasses ----
+
+    [Theory]
+    [InlineData("Unknown encoder 'libx264'", "libx264")]
+    [InlineData("Invalid data found", "libx264")]
+    [InlineData("Unknown encoder 'flac'", "flac")]
+    public void Concat_script_named_like_audio_cannot_decide_the_error(string phrase, string requested)
+    {
+        // Bypass 1: FFmpeg opens the "song.mp3" text file as an ffconcat script and prints the script's own text
+        // in an unindented line. Real tail (the script said: file <phrase>).
+        var source = Path.Combine(_folder.Path, "song.mp3");
+        var stderr =
+            $"[in#0 @ 0000016777b7bc80] Unsafe file name '{phrase}'\n" +
+            "[in#0 @ 0000016777ae1740] Error opening input: Operation not permitted\n" +
+            $"Error opening input file {source}.\n" +
+            "Error opening input files: Operation not permitted\n";
+
+        var result = MediaConverter.MapFailure(stderr, source, [requested]);
+
+        Assert.Equal(ConversionError.ToolFailed, result.Error);
+        Assert.Equal("FFmpeg could not convert this file.", result.Message);
+    }
+
+    [Theory]
+    [InlineData("Unknown encoder 'libmp3lame'", ConversionError.Unsupported)]
+    [InlineData("Invalid data found when processing input", ConversionError.Unsupported)]
+    public void Truncated_tag_flood_cannot_decide_the_error(string phrase, ConversionError expected)
+    {
+        // Bypass 2: ProcessRunner keeps the last 64 KB and cuts inside an indented metadata line, so the fragment starts at column 0.
+        var folder = Path.Combine(_folder.Path, "videos");
+        var stderr =
+            "[…truncated…]\n" +
+            $"{phrase}. {phrase}. {phrase}\n" +
+            $"    comment{new string(' ', 10)}: {phrase}\n" +
+            "  Duration: 00:00:01.00, start: 0.000000, bitrate: 1000 kb/s\n" +
+            "  Stream #0:0: Video: h264, yuv420p, 1280x720, 12 fps\n" +
+            NoStreamsTail;
+
+        var result = MediaConverter.MapFailure(stderr, Path.Combine(folder, "clip.mkv"), Mp3Encoder);
+
+        Assert.Equal(expected, result.Error);
+        Assert.Equal("This file has no audio track.", result.Message);
+    }
+
+    [Fact]
+    public void Partial_first_line_after_the_truncation_marker_is_discarded()
+    {
+        // If the kept text were only that fragment, it must not be read as a diagnostic.
+        var stderr = "[…truncated…]\nError opening input files: Invalid data found when processing input\n";
+
+        var result = MediaConverter.MapFailure(stderr, Path.Combine(_folder.Path, "a.wav"), Mp3Encoder);
+
+        Assert.Equal(ConversionError.ToolFailed, result.Error);
+    }
+
+    [Fact]
+    public void File_name_that_ffmpeg_echoes_differently_cannot_decide_the_error()
+    {
+        // Bypass 3: a lone surrogate in the name is printed as U+FFFD, so the printed path is not the path we passed.
+        var folder = _folder.Path;
+        var stderr =
+            "[in#0 @ 0000000000000000] Error opening input: No such file or directory\n" +
+            $"Error opening input file {folder}\\� Unknown encoder 'libx264'.mkv.\n" +
+            "Error opening input files: No such file or directory\n";
+
+        var result = MediaConverter.MapFailure(stderr, Path.Combine(folder, "\uD800 Unknown encoder 'libx264'.mkv"), ["libx264", "aac"]);
+
+        Assert.Equal(ConversionError.ToolFailed, result.Error);
+        Assert.DoesNotContain("libx264", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Lookalike_diagnostic_lines_earlier_in_stderr_are_ignored()
+    {
+        // Whatever the file makes FFmpeg print earlier, only the closing lines count.
+        var stderr = MissingEncoderTail("libmp3lame") + "Error opening input files: Invalid data found when processing input\n" + NoStreamsTail;
+
+        var result = MediaConverter.MapFailure(stderr, Path.Combine(_folder.Path, "a.mkv"), Mp3Encoder);
+
+        Assert.Equal(ConversionError.Unsupported, result.Error);
+    }
+
+    [Fact]
+    public void Requested_encoders_are_the_codec_arguments_of_the_target()
+    {
+        var args = FfmpegArguments.For(TargetCatalog.VideoMp4.Id, Path.Combine(_folder.Path, "a.mkv"), Path.Combine(_folder.Path, "a.mp4"));
+
+        Assert.Equal(new[] { "aac", "libx264" }, MediaConverter.RequestedEncoders(args).Order().ToArray());
+        Assert.Empty(MediaConverter.RequestedEncoders(FfmpegArguments.For(TargetCatalog.VideoGif.Id, Path.Combine(_folder.Path, "a.mkv"), Path.Combine(_folder.Path, "a.gif"))));
+    }
+
+    [Theory]
+    [InlineData("libvorbis", ConversionError.ToolMissing)]
+    [InlineData("libx264", ConversionError.ToolFailed)]
+    public async Task Converter_reports_a_missing_encoder_only_if_it_asked_for_it(string encoder, ConversionError expected)
+    {
+        var source = Source();
+        var runner = new FakeRunner { Result = new ProcessResult(1, string.Empty, MissingEncoderTail(encoder), false) };
+
+        var result = await Converter(runner).ConvertAsync(ConversionRequest.Create(source, TargetCatalog.AudioOgg), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.Equal(expected, result.Error);
+        Assert.Empty(_folder.TempFiles());
     }
 
     // ---- Success path, labels, timeouts, progress ----
@@ -363,10 +514,10 @@ public sealed class MediaConverterTests : IDisposable
 
     public static TheoryData<string, ConversionError, string> Failures => new()
     {
-        { "x.wav: Invalid data found when processing input\n", ConversionError.CorruptInput, "This file couldn't be read. It may be damaged." },
-        { "frame=1\n[aost#0:0 @ 0x1] Unknown encoder 'libmp3lame'\nError selecting an encoder\n", ConversionError.ToolMissing, "Your FFmpeg build lacks the libmp3lame encoder." },
-        { "Unknown encoder 'evil encoder with a very long name that goes on and on'\n", ConversionError.ToolMissing, "Your FFmpeg build lacks a needed encoder." },
-        { "Stream map '0:a:0' matches no streams.\n", ConversionError.Unsupported, "This file has no audio track." },
+        { "[in#0 @ 0x1] Error opening input: Invalid data found when processing input\nError opening input file x.wav.\nError opening input files: Invalid data found when processing input\n", ConversionError.CorruptInput, "This file couldn't be read. It may be damaged." },
+        { "frame=1\n[aost#0:0 @ 0x1] Unknown encoder 'libmp3lame'\n[aost#0:0 @ 0x1] Error selecting an encoder\nError opening output file x.mp3.\nError opening output files: Encoder not found\n", ConversionError.ToolMissing, "Your FFmpeg build lacks the libmp3lame encoder." },
+        { "[aost#0:0 @ 0x1] Unknown encoder 'evil'\n[aost#0:0 @ 0x1] Error selecting an encoder\nError opening output file x.mp3.\nError opening output files: Encoder not found\n", ConversionError.ToolFailed, "FFmpeg could not convert this file." },
+        { "Stream map '' matches no streams.\nTo ignore this, add a trailing '?' to the map.\nFailed to set value '0:a:0' for option 'map': Invalid argument\nError parsing options for output file x.mp3.\nError opening output files: Invalid argument\n", ConversionError.Unsupported, "This file has no audio track." },
         { "Conversion failed!\nout_time_us=1\nprogress=end\n", ConversionError.ToolFailed, "FFmpeg could not convert this file." },
         { "", ConversionError.ToolFailed, "FFmpeg could not convert this file." },
     };

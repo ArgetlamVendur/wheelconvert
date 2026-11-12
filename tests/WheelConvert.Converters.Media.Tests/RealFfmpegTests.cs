@@ -129,6 +129,42 @@ public sealed class RealFfmpegTests(ITestOutputHelper log) : IDisposable
         Assert.Single(Directory.GetFiles(folder));
     }
 
+    [FfmpegTheory]
+    [InlineData("Unknown\\ encoder\\ \\'libx264\\'")]
+    [InlineData("Invalid\\ data\\ found")]
+    public async Task Concat_script_named_song_mp3_cannot_decide_the_error(string fileEntry)
+    {
+        // FFmpeg picks the reader from the content: this "mp3" is an ffconcat script, and FFmpeg prints the script's
+        // own text in an unindented line. The script is only text; nothing it names exists.
+        var source = _folder.CreateFile("song.mp3", System.Text.Encoding.ASCII.GetBytes($"ffconcat version 1.0\nfile {fileEntry}\n"));
+        var hash = TestFolder.Hash(source);
+
+        var result = await Converter().ConvertAsync(ConversionRequest.Create(source, TargetCatalog.AudioFlac), new SafeOutputWriter(), null, CancellationToken.None);
+
+        log.WriteLine($"{result.Error}: {result.Message}");
+        Assert.Equal(ConversionError.ToolFailed, result.Error);
+        Assert.Equal("FFmpeg could not convert this file.", result.Message);
+        Assert.Equal(hash, TestFolder.Hash(source));
+        Assert.Single(Directory.GetFiles(_folder.Path));
+    }
+
+    [FfmpegFact]
+    public async Task File_name_with_a_lone_surrogate_cannot_decide_the_error()
+    {
+        // A lone surrogate is legal on NTFS; FFmpeg echoes it as U+FFFD, so the printed path differs from the one we passed.
+        var plain = _folder.File("silent.mkv");
+        await RealFfmpeg.GenerateAsync("-f", "lavfi", "-i", "testsrc=duration=1:size=320x240:rate=5", "-c:v", "mpeg4", plain);
+        var source = _folder.File("\uD800 Unknown encoder 'libx264'.mkv");
+        File.Move(plain, source);
+
+        var result = await Converter().ConvertAsync(ConversionRequest.Create(source, TargetCatalog.VideoExtractMp3), new SafeOutputWriter(), null, CancellationToken.None);
+
+        log.WriteLine($"{result.Error}: {result.Message}");
+        Assert.NotEqual(ConversionError.ToolMissing, result.Error);
+        Assert.DoesNotContain("libx264", result.Message, StringComparison.Ordinal);
+        Assert.Single(Directory.GetFiles(_folder.Path));
+    }
+
     // ---- Acceptance test 5 (real process) ----
 
     [FfmpegFact]

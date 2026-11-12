@@ -154,7 +154,7 @@ public sealed partial class MediaConverter : IConverter
             if (result.ExitCode != 0)
             {
                 // Not logged: the frozen constructor has no ILog (WP-07 req. 5 can't be met as written; see the PR).
-                return MapFailure(result.StdErr, sourceFullPath, temp);
+                return MapFailure(result.StdErr, sourceFullPath, RequestedEncoders(args));
             }
 
             var final = output.Commit(temp, sourceFullPath, ext, label);
@@ -188,67 +188,106 @@ public sealed partial class MediaConverter : IConverter
         }
     }
 
-    // Encoders this converter itself passes to FFmpeg (FfmpegArguments). Only these names may appear in a user message.
-    private static readonly HashSet<string> KnownEncoders = new(StringComparer.Ordinal)
-    {
-        "libmp3lame", "aac", "flac", "pcm_s16le", "libvorbis", "libopus", "libx264", "libvpx-vp9",
-    };
+    // ProcessRunner's buffer prefixes stderr with this line when it dropped the start; the line after it is cut mid-line.
+    private const string TruncationMarker = "[…truncated…]";
 
-    // FFmpeg prints its own diagnostics last. Only this many trailing lines are searched, so the input dump
-    // (file metadata, paths) printed earlier can't steer the result.
-    private const int DiagnosticLineCount = 6;
+    private const string OldInvalidDataSuffix = ": Invalid data found when processing input";
+
+    /// <summary>The encoder names this conversion asked FFmpeg for (the <c>-c:a</c> / <c>-c:v</c> values).</summary>
+    internal static IReadOnlyCollection<string> RequestedEncoders(IReadOnlyList<string> arguments)
+    {
+        var encoders = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i + 1 < arguments.Count; i++)
+        {
+            if (arguments[i] is "-c:a" or "-c:v")
+            {
+                encoders.Add(arguments[i + 1]);
+            }
+        }
+
+        return encoders;
+    }
 
     /// <summary>
-    /// Maps a non-zero exit to an error code from FFmpeg's own diagnostic lines. Untrusted text (title tags, file and
-    /// folder names) also reaches stderr, so: the source path, temp output path and their folder are removed first,
-    /// progress lines and indented lines (FFmpeg indents metadata and stream details) are skipped, only the last few
-    /// remaining lines are searched, and stderr text is never copied into the message except an encoder name from
-    /// <see cref="KnownEncoders"/>.
+    /// Maps a non-zero exit to an error code. Untrusted text (tags, file and folder names, concat entries) reaches
+    /// stderr, so the code is decided only by FFmpeg's closing error lines, which nothing from the file can follow:
+    /// <list type="bullet">
+    /// <item>the last line must be one of FFmpeg's fixed error lines, compared as a whole line (no substring search);</item>
+    /// <item>the lines just before it must have FFmpeg's own whole-line shapes, anchored at both ends;</item>
+    /// <item>a partial first line left by ProcessRunner's truncation is discarded;</item>
+    /// <item>an "Unknown encoder" result is reported only for an encoder this conversion requested (<paramref name="requestedEncoders"/>);</item>
+    /// <item>anything else is the generic <see cref="ConversionError.ToolFailed"/>; no stderr text is ever copied into a message
+    /// (the encoder name shown is the requested one, taken from our own arguments).</item>
+    /// </list>
     /// </summary>
-    internal static ConversionResult MapFailure(string? stdErr, string sourceFullPath, string? tempFullPath = null)
+    internal static ConversionResult MapFailure(string? stdErr, string sourceFullPath, IReadOnlyCollection<string> requestedEncoders)
     {
-        var text = stdErr ?? string.Empty;
-        var folder = Path.GetDirectoryName(sourceFullPath);
-        foreach (var path in new[] { sourceFullPath, tempFullPath, folder }.OfType<string>().Where(p => p.Length > 0).OrderByDescending(p => p.Length))
+        var lines = (stdErr ?? string.Empty).Split('\n').Select(l => l.TrimEnd('\r')).ToList();
+
+        // The line after the marker is a fragment of unknown origin (e.g. the tail of a metadata line that starts at column 0).
+        if (lines.Count > 0 && lines[0] == TruncationMarker)
         {
-            text = text
-                .Replace(path, string.Empty, StringComparison.OrdinalIgnoreCase)
-                .Replace(path.Replace('\\', '/'), string.Empty, StringComparison.OrdinalIgnoreCase);
+            lines.RemoveRange(0, Math.Min(2, lines.Count));
         }
 
-        text = string.Join(
-            '\n',
-            text.Split('\n')
-                .Where(l => l.Length > 0 && !char.IsWhiteSpace(l[0]))
-                .Where(l => !FfmpegProgressParser.IsProgressLine(l.Trim()))
-                .TakeLast(DiagnosticLineCount));
-
-        var encoder = UnknownEncoderPattern().Match(text);
-        if (encoder.Success && KnownEncoders.Contains(encoder.Groups[1].Value))
+        lines = lines.Where(l => l.Length > 0 && !FfmpegProgressParser.IsProgressLine(l.Trim())).ToList();
+        if (lines.Count == 0)
         {
-            return ConversionResult.Fail(ConversionError.ToolMissing, $"Your FFmpeg build lacks the {encoder.Groups[1].Value} encoder.");
+            return GenericFailure();
         }
 
-        if (text.Contains("Unknown encoder", StringComparison.Ordinal))
-        {
-            return ConversionResult.Fail(ConversionError.ToolMissing, "Your FFmpeg build lacks a needed encoder.");
-        }
+        var last = lines[^1];
 
-        if (text.Contains("Invalid data found", StringComparison.Ordinal))
+        if (last == "Error opening input files: Invalid data found when processing input"
+            || IsOldShapeInvalidData(last, sourceFullPath))
         {
             return ConversionResult.Fail(ConversionError.CorruptInput, "This file couldn't be read. It may be damaged.");
         }
 
-        if (text.Contains("matches no streams", StringComparison.Ordinal))
+        if (last == "Error opening output files: Encoder not found")
+        {
+            // Four closing lines: "[aost#0:0 @ ptr] Unknown encoder 'x'", "[same prefix] Error selecting an encoder",
+            // "Error opening output file <path>.", and the line matched above.
+            if (lines.Count >= 4
+                && UnknownEncoderPattern().Match(lines[^4]) is { Success: true } unknown
+                && SelectingEncoderPattern().Match(lines[^3]) is { Success: true } selecting
+                && unknown.Groups[1].Value == selecting.Groups[1].Value
+                && lines[^2].StartsWith("Error opening output file ", StringComparison.Ordinal)
+                && requestedEncoders.Contains(unknown.Groups[2].Value))
+            {
+                return ConversionResult.Fail(ConversionError.ToolMissing, $"Your FFmpeg build lacks the {unknown.Groups[2].Value} encoder.");
+            }
+
+            return GenericFailure();
+        }
+
+        if (last == "Error opening output files: Invalid argument"
+            && lines.Skip(Math.Max(0, lines.Count - 5)).Take(4).Any(l => NoStreamsPattern().IsMatch(l)))
         {
             // "-map 0:a:0" on a file without audio, e.g. a silent screen recording → Audio/MP3.
             return ConversionResult.Fail(ConversionError.Unsupported, "This file has no audio track.");
         }
 
-        return ConversionResult.Fail(ConversionError.ToolFailed, "FFmpeg could not convert this file.");
+        return GenericFailure();
     }
 
-    // Only a short identifier is admitted, and then only if it is in KnownEncoders; stderr text never reaches the user.
-    [GeneratedRegex(@"Unknown encoder '([A-Za-z0-9_\-]{1,32})'", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    private static ConversionResult GenericFailure() =>
+        ConversionResult.Fail(ConversionError.ToolFailed, "FFmpeg could not convert this file.");
+
+    // Older FFmpeg ends with "<input path>: Invalid data found ...". Compared as an exact string against the path we passed
+    // (a Windows file name can't contain ':'), never by cutting the path out of the text.
+    private static bool IsOldShapeInvalidData(string line, string sourceFullPath) =>
+        sourceFullPath.Length > 0
+        && (string.Equals(line, sourceFullPath + OldInvalidDataSuffix, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(line, sourceFullPath.Replace('\\', '/') + OldInvalidDataSuffix, StringComparison.OrdinalIgnoreCase));
+
+    // Whole-line shapes copied from real FFmpeg output (pointer is "0000024..." on Windows, "0x55..." elsewhere). [0-9] rather than \d: \d also matches non-ASCII digits.
+    [GeneratedRegex(@"^\[([a-z]ost#[0-9]+:[0-9]+ @ (?:0x)?[0-9a-fA-F]+)\] Unknown encoder '([A-Za-z0-9_\-]{1,32})'\z", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex UnknownEncoderPattern();
+
+    [GeneratedRegex(@"^\[([a-z]ost#[0-9]+:[0-9]+ @ (?:0x)?[0-9a-fA-F]+)\] Error selecting an encoder\z", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex SelectingEncoderPattern();
+
+    [GeneratedRegex(@"^Stream map '[0-9a-z:]{0,16}' matches no streams\.\z", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex NoStreamsPattern();
 }
