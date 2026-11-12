@@ -154,7 +154,7 @@ public sealed partial class MediaConverter : IConverter
             if (result.ExitCode != 0)
             {
                 // Not logged: the frozen constructor has no ILog (WP-07 req. 5 can't be met as written; see the PR).
-                return MapFailure(result.StdErr, sourceFullPath);
+                return MapFailure(result.StdErr, sourceFullPath, temp);
             }
 
             var final = output.Commit(temp, sourceFullPath, ext, label);
@@ -188,22 +188,43 @@ public sealed partial class MediaConverter : IConverter
         }
     }
 
-    /// <summary>
-    /// Maps a non-zero exit to an error code from FFmpeg's message lines. Progress lines are skipped, and the source
-    /// path is removed first: FFmpeg echoes it, and an untrusted file name like "Invalid data found.wav" must not
-    /// decide the error.
-    /// </summary>
-    internal static ConversionResult MapFailure(string? stdErr, string sourceFullPath)
+    // Encoders this converter itself passes to FFmpeg (FfmpegArguments). Only these names may appear in a user message.
+    private static readonly HashSet<string> KnownEncoders = new(StringComparer.Ordinal)
     {
-        var text = string.Join(
+        "libmp3lame", "aac", "flac", "pcm_s16le", "libvorbis", "libopus", "libx264", "libvpx-vp9",
+    };
+
+    // FFmpeg prints its own diagnostics last. Only this many trailing lines are searched, so the input dump
+    // (file metadata, paths) printed earlier can't steer the result.
+    private const int DiagnosticLineCount = 6;
+
+    /// <summary>
+    /// Maps a non-zero exit to an error code from FFmpeg's own diagnostic lines. Untrusted text (title tags, file and
+    /// folder names) also reaches stderr, so: the source path, temp output path and their folder are removed first,
+    /// progress lines and indented lines (FFmpeg indents metadata and stream details) are skipped, only the last few
+    /// remaining lines are searched, and stderr text is never copied into the message except an encoder name from
+    /// <see cref="KnownEncoders"/>.
+    /// </summary>
+    internal static ConversionResult MapFailure(string? stdErr, string sourceFullPath, string? tempFullPath = null)
+    {
+        var text = stdErr ?? string.Empty;
+        var folder = Path.GetDirectoryName(sourceFullPath);
+        foreach (var path in new[] { sourceFullPath, tempFullPath, folder }.OfType<string>().Where(p => p.Length > 0).OrderByDescending(p => p.Length))
+        {
+            text = text
+                .Replace(path, string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Replace(path.Replace('\\', '/'), string.Empty, StringComparison.OrdinalIgnoreCase);
+        }
+
+        text = string.Join(
             '\n',
-            (stdErr ?? string.Empty)
-                .Replace(sourceFullPath, string.Empty, StringComparison.OrdinalIgnoreCase)
-                .Split('\n')
-                .Where(l => !FfmpegProgressParser.IsProgressLine(l.Trim())));
+            text.Split('\n')
+                .Where(l => l.Length > 0 && !char.IsWhiteSpace(l[0]))
+                .Where(l => !FfmpegProgressParser.IsProgressLine(l.Trim()))
+                .TakeLast(DiagnosticLineCount));
 
         var encoder = UnknownEncoderPattern().Match(text);
-        if (encoder.Success)
+        if (encoder.Success && KnownEncoders.Contains(encoder.Groups[1].Value))
         {
             return ConversionResult.Fail(ConversionError.ToolMissing, $"Your FFmpeg build lacks the {encoder.Groups[1].Value} encoder.");
         }
@@ -227,8 +248,7 @@ public sealed partial class MediaConverter : IConverter
         return ConversionResult.Fail(ConversionError.ToolFailed, "FFmpeg could not convert this file.");
     }
 
-    // The codec name comes from our own arguments; the pattern admits only a short identifier, so odd stderr
-    // can't stretch the user message past 120 characters.
+    // Only a short identifier is admitted, and then only if it is in KnownEncoders; stderr text never reaches the user.
     [GeneratedRegex(@"Unknown encoder '([A-Za-z0-9_\-]{1,32})'", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex UnknownEncoderPattern();
 }

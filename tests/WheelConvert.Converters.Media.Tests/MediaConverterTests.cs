@@ -182,6 +182,118 @@ public sealed class MediaConverterTests : IDisposable
         Assert.Equal(ConversionError.ToolFailed, result.Error);
     }
 
+    // ---- Untrusted text in stderr (review finding 1) ----
+
+    private static string Dump(string folder, string titleTag) =>
+        $"Input #0, matroska,webm, from '{folder}\\clip.mkv':\n" +
+        "  Metadata:\n" +
+        $"    title           : {titleTag}\n" +
+        "  Duration: 00:00:01.00, start: 0.000000, bitrate: 1000 kb/s\n" +
+        "  Stream #0:0: Video: h264, yuv420p, 1280x720, 12 fps\n";
+
+    [Theory]
+    [InlineData("Invalid data found")]
+    [InlineData("Invalid data found when processing input")]
+    [InlineData("Unknown encoder 'pwned'")]
+    [InlineData("Unknown encoder 'libmp3lame'")]
+    public void Title_tag_text_does_not_decide_the_error(string titleTag)
+    {
+        var folder = Path.Combine(_folder.Path, "videos");
+        var stderr = Dump(folder, titleTag) + "Stream map '0:a:0' matches no streams.\nError opening output files: Invalid argument\n";
+
+        var result = MediaConverter.MapFailure(stderr, Path.Combine(folder, "clip.mkv"), Path.Combine(folder, "clip.wctmp.mp3"));
+
+        Assert.Equal(ConversionError.Unsupported, result.Error);
+        Assert.Equal("This file has no audio track.", result.Message);
+    }
+
+    [Fact]
+    public void Title_tag_text_cannot_turn_a_generic_failure_into_another_error()
+    {
+        var folder = Path.Combine(_folder.Path, "videos");
+        var stderr = Dump(folder, "Unknown encoder 'pwned'") + "Conversion failed!\n";
+
+        var result = MediaConverter.MapFailure(stderr, Path.Combine(folder, "clip.mkv"), null);
+
+        Assert.Equal(ConversionError.ToolFailed, result.Error);
+        Assert.Equal("FFmpeg could not convert this file.", result.Message);
+    }
+
+    [Theory]
+    [InlineData("Invalid data found")]
+    [InlineData("Unknown encoder 'libmp3lame'")]
+    public void Folder_name_text_does_not_decide_the_error(string folderName)
+    {
+        var folder = Path.Combine(_folder.Path, folderName);
+        var source = Path.Combine(folder, "clip.mkv");
+        var temp = Path.Combine(folder, "clip.wctmp.mp3");
+        // FFmpeg echoes the output path in "Output #0" and in its error line; both are outside the input dump.
+        var stderr = Dump(folder, "plain") +
+            "Stream map '0:a:0' matches no streams.\n" +
+            $"Output #0, mp3, to '{temp}':\n" +
+            $"Error opening output {temp}: Invalid argument\n";
+
+        var result = MediaConverter.MapFailure(stderr, source, temp);
+
+        Assert.Equal(ConversionError.Unsupported, result.Error);
+    }
+
+    [Fact]
+    public void Folder_name_text_does_not_decide_the_error_when_ffmpeg_prints_only_the_folder()
+    {
+        var folder = Path.Combine(_folder.Path, "Invalid data found");
+        var stderr = $"Conversion failed in {folder}\n";
+
+        var result = MediaConverter.MapFailure(stderr, Path.Combine(folder, "clip.mkv"), Path.Combine(folder, "clip.wctmp.mp3"));
+
+        Assert.Equal(ConversionError.ToolFailed, result.Error);
+    }
+
+    [Fact]
+    public void Real_corrupt_input_diagnostic_is_corrupt_input()
+    {
+        var folder = Path.Combine(_folder.Path, "audio");
+        var source = Path.Combine(folder, "bad.wav");
+        var stderr = $"{source}: Invalid data found when processing input\n";
+
+        var result = MediaConverter.MapFailure(stderr, source, Path.Combine(folder, "bad.wctmp.flac"));
+
+        Assert.Equal(ConversionError.CorruptInput, result.Error);
+    }
+
+    [Fact]
+    public void Real_missing_encoder_diagnostic_is_tool_missing_with_the_encoder_name()
+    {
+        var folder = Path.Combine(_folder.Path, "audio");
+        var source = Path.Combine(folder, "tone.wav");
+        var stderr = Dump(folder, "plain") + "[aost#0:0 @ 0x1] Unknown encoder 'libvorbis'\n[aost#0:0 @ 0x1] Error selecting an encoder\nError opening output file.\n";
+
+        var result = MediaConverter.MapFailure(stderr, source, Path.Combine(folder, "tone.wctmp.ogg"));
+
+        Assert.Equal(ConversionError.ToolMissing, result.Error);
+        Assert.Equal("Your FFmpeg build lacks the libvorbis encoder.", result.Message);
+    }
+
+    [Fact]
+    public void Encoder_name_outside_the_list_is_never_echoed()
+    {
+        var result = MediaConverter.MapFailure("Unknown encoder 'pwned'\n", Path.Combine(_folder.Path, "a.wav"), null);
+
+        Assert.Equal(ConversionError.ToolMissing, result.Error);
+        Assert.DoesNotContain("pwned", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void No_audio_track_diagnostic_is_unsupported()
+    {
+        var folder = Path.Combine(_folder.Path, "videos");
+
+        var result = MediaConverter.MapFailure(Dump(folder, "plain") + "Stream map '0:a:0' matches no streams.\n", Path.Combine(folder, "clip.mkv"), null);
+
+        Assert.Equal(ConversionError.Unsupported, result.Error);
+        Assert.Equal("This file has no audio track.", result.Message);
+    }
+
     // ---- Success path, labels, timeouts, progress ----
 
     [Fact]
@@ -284,7 +396,23 @@ public sealed class MediaConverterTests : IDisposable
         var result = await Converter(runner).ConvertAsync(ConversionRequest.Create(Source(), TargetCatalog.AudioMp3), new SafeOutputWriter(), null, CancellationToken.None);
 
         Assert.Equal(ConversionError.ToolFailed, result.Error);
+        Assert.Equal("FFmpeg took too long and was stopped.", result.Message);
         Assert.Empty(_folder.TempFiles());
+    }
+
+    [Fact]
+    public async Task Timeout_with_exit_zero_is_still_a_failure_and_commits_nothing()
+    {
+        // A killed run can report exit code 0; the partial temp file must not be published.
+        var runner = new FakeRunner { Result = new ProcessResult(0, string.Empty, string.Empty, TimedOut: true) };
+        var source = Source();
+
+        var result = await Converter(runner).ConvertAsync(ConversionRequest.Create(source, TargetCatalog.AudioMp3), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("FFmpeg took too long and was stopped.", result.Message);
+        Assert.Empty(_folder.TempFiles());
+        Assert.Equal(new[] { source }, Directory.GetFiles(_folder.Path));
     }
 
     [Fact]

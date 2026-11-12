@@ -108,6 +108,27 @@ public sealed class RealFfmpegTests(ITestOutputHelper log) : IDisposable
         Assert.Single(Directory.GetFiles(_folder.Path));
     }
 
+    [FfmpegTheory]
+    [InlineData("Invalid data found")]
+    [InlineData("Unknown encoder 'pwned'")]
+    public async Task Metadata_and_folder_text_do_not_decide_the_error(string text)
+    {
+        // Silent video whose title tag AND folder name carry the phrase: the honest answer is "no audio track".
+        var folder = Path.Combine(_folder.Path, text.Replace("'", string.Empty, StringComparison.Ordinal));
+        Directory.CreateDirectory(folder);
+        var source = Path.Combine(folder, "silent.mkv");
+        await RealFfmpeg.GenerateAsync(
+            "-f", "lavfi", "-i", "testsrc=duration=1:size=320x240:rate=5",
+            "-c:v", "mpeg4", "-metadata", $"title={text}", source);
+
+        var result = await Converter().ConvertAsync(ConversionRequest.Create(source, TargetCatalog.VideoExtractMp3), new SafeOutputWriter(), null, CancellationToken.None);
+
+        log.WriteLine($"{result.Error}: {result.Message}");
+        Assert.Equal(ConversionError.Unsupported, result.Error);
+        Assert.Equal("This file has no audio track.", result.Message);
+        Assert.Single(Directory.GetFiles(folder));
+    }
+
     // ---- Acceptance test 5 (real process) ----
 
     [FfmpegFact]
@@ -130,10 +151,17 @@ public sealed class RealFfmpegTests(ITestOutputHelper log) : IDisposable
         Assert.Single(Directory.GetFiles(_folder.Path));
     }
 
-    /// <returns>True when the output was produced; false when this FFmpeg build lacks the encoder (allowed).</returns>
+    // Encoders that common FFmpeg builds may leave out. flac, pcm_s16le, aac and gif are built in: ToolMissing there is a bug.
+    private static readonly HashSet<string> OptionalEncoderTargets =
+    [
+        TargetCatalog.AudioMp3.Id, TargetCatalog.AudioOgg.Id, TargetCatalog.AudioOpus.Id,
+        TargetCatalog.VideoMp4.Id, TargetCatalog.VideoWebm.Id, TargetCatalog.VideoExtractMp3.Id,
+    ];
+
+    /// <returns>True when the output was produced; false when this FFmpeg build lacks an optional encoder (allowed).</returns>
     private async Task<bool> AssertConvertedOrEncoderMissingAsync(ConversionTarget target, ConversionResult result)
     {
-        if (result.Error == ConversionError.ToolMissing)
+        if (result.Error == ConversionError.ToolMissing && OptionalEncoderTargets.Contains(target.Id))
         {
             log.WriteLine($"{target.Id}: encoder missing in this FFmpeg build → {result.Message}");
             Assert.StartsWith("Your FFmpeg build lacks", result.Message, StringComparison.Ordinal);

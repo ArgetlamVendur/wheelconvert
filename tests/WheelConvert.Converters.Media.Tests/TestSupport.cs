@@ -89,6 +89,19 @@ internal sealed class FfmpegFactAttribute : FactAttribute
     }
 }
 
+/// <summary>A [Theory] that is reported as SKIPPED when FFmpeg isn't installed.</summary>
+[AttributeUsage(AttributeTargets.Method)]
+internal sealed class FfmpegTheoryAttribute : TheoryAttribute
+{
+    public FfmpegTheoryAttribute()
+    {
+        if (RealFfmpeg.Path is null)
+        {
+            Skip = RealFfmpeg.SkipReason;
+        }
+    }
+}
+
 /// <summary>Stands in for ProcessRunner: records the call and plays a scripted FFmpeg run.</summary>
 internal sealed class FakeRunner
 {
