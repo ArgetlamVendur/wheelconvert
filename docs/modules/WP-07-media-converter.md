@@ -39,16 +39,17 @@ Audio and video conversions through the user's own FFmpeg (ADR-004).
 - GPL encoders (libx264) are in the user's FFmpeg build, not ours (ADR-004).
 
 ## Acceptance tests
-| # | Who | Test | Expected |
-|---|---|---|---|
-| 1 | Agent (xUnit) | `FfmpegArguments` for every target | Exact expected list; input/output are separate elements |
-| 2 | Agent (xUnit) | `CheckHealth` with a fake PATH | Missing / Ready |
-| 3 | Agent (xUnit, skipped if no ffmpeg) | Generate a 1 s sine WAV with ffmpeg, convert to each audio target | Valid outputs, source unchanged, no temp left |
-| 4 | Agent (xUnit, skipped if no ffmpeg) | Corrupt input | `CorruptInput` or `ToolFailed`, no temp left |
-| 5 | Agent (xUnit) | Cancel mid-conversion | Process killed, `OperationCanceledException`, temp discarded |
-| 6 | User | Uninstall FFmpeg / rename it, restart | Audio segments gone; tray status explains |
-| 7 | User | `winget install Gyan.FFmpeg`, tray → Check again | Segments appear without restart |
-| 8 | User | MOV from phone → MP4; MP4 → GIF; MP4 → Audio | Plays correctly |
+| # | Who | Test | Expected | Result |
+|---|---|---|---|---|
+| 1 | Agent (xUnit) | `FfmpegArguments` for every target | Exact expected list; input/output are separate elements | PASS (`FfmpegArgumentsTests`; also `-x.wav` → full path) |
+| 2 | Agent (xUnit) | `CheckHealth` with a fake PATH | Missing / Ready | PASS (`MediaConverterTests.Health_*`, `Path_is_cached_*`) |
+| 3 | Agent (xUnit, skipped if no ffmpeg) | Generate a 1 s sine WAV with ffmpeg, convert to each audio target | Valid outputs, source unchanged, no temp left | SKIPPED here: FFmpeg not installed (`RealFfmpegTests.Sine_wav_*`); runs when FFmpeg is present |
+| 4 | Agent (xUnit, skipped if no ffmpeg) | Corrupt input | `CorruptInput` or `ToolFailed`, no temp left | SKIPPED here: FFmpeg not installed (`RealFfmpegTests.Corrupt_input_*`) |
+| 5 | Agent (xUnit) | Cancel mid-conversion | Process killed, `OperationCanceledException`, temp discarded | PASS without FFmpeg (fake runner: temp discarded, OCE); real-process kill test SKIPPED here (no FFmpeg) |
+| 6 | User | Uninstall FFmpeg / rename it, restart | Audio segments gone; tray status explains | NEEDS USER |
+| 7 | User | `winget install Gyan.FFmpeg`, tray → Check again | Segments appear without restart | NEEDS USER |
+| 8 | User | MOV from phone → MP4; MP4 → GIF; MP4 → Audio | Plays correctly | NEEDS USER |
+| 9 | Agent (xUnit, skipped if no ffmpeg) | testsrc+sine 1280×720 MKV → MP4, WebM, GIF, Audio | Valid outputs or `ToolMissing`; GIF is 720 wide (filter reached FFmpeg intact) | SKIPPED here: FFmpeg not installed |
 
 ## Start prompt
 ```
