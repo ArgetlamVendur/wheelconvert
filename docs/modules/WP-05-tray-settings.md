@@ -32,14 +32,14 @@ The app's only permanent UI: a tray icon with a menu, balloon notifications (ADR
 - Dispose the NotifyIcon on exit or a ghost icon stays until hovered.
 
 ## Acceptance tests
-| # | Who | Steps | Expected |
-|---|---|---|---|
-| 1 | Agent | Build App | 0 warnings |
-| 2 | User | Start the app | Tray icon appears with tooltip "WheelConvert" |
-| 3 | User | Right-click the icon | Menu as in req. 3 |
-| 4 | User | Toggle Start with Windows, check `regedit` HKCU\…\Run | Value appears / disappears |
-| 5 | User | Exit | Icon disappears immediately |
-| 6 | User | Trigger a success notification (after WP-06/11) and click it | Explorer opens with the file selected |
+| # | Who | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1 | Agent | Build App | 0 warnings | PASS (Release, whole solution: 0 warnings, 0 errors; App tests 87/87; Core 64/64) |
+| 2 | User | Start the app | Tray icon appears with tooltip "WheelConvert" | NEEDS USER (agent: app starts and logs "WheelConvert started"; icon not seen) |
+| 3 | User | Right-click the icon | Menu as in req. 3 | NEEDS USER |
+| 4 | User | Toggle Start with Windows, check `regedit` HKCU\…\Run | Value appears / disappears | NEEDS USER (agent: same code passes tests on a scratch HKCU key) |
+| 5 | User | Exit | Icon disappears immediately | NEEDS USER |
+| 6 | User | Trigger a success notification (after WP-06/11) and click it | Explorer opens with the file selected | NEEDS USER (needs WP-06 merged) |
 
 ## Start prompt
 ```
