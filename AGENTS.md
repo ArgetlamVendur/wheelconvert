@@ -88,3 +88,13 @@ If you can't finish: set the WP to `BLOCKED: <reason>` in STATUS.md, commit what
 - The user is not a C# developer and relies on agents for implementation. Give exact commands and expected results ("open File Explorer, hold Shift, drag photo.png…").
 - Lead with what is broken, risky or untested. No praise of your own work.
 - Mark clearly what you verified by running vs. by reading only.
+
+---
+
+## 9. Orchestrated runs
+When the user authorises one (runbook: `APPS\2026-11-12-runbook.md`, next to the repo folder):
+- An orchestrator agent may dispatch builder and reviewer sub-agents, one WP per builder, each in its own worktree.
+- A reviewer sub-agent started without the build context (no builder reasoning or report) counts as a fresh session (§2). The reviewer's model must differ from the model that wrote the last commit under review.
+- In §2 step 3, the orchestrator's dispatch stands in for the user's "go".
+- The orchestrator may merge PRs only under that runbook's merge rules (CI green, APPROVE on the latest commit, user checkpoint PASS). This is the one exception to "the user merges PRs" (§7).
+- It never publishes: no public repo, no non-draft release, no tags, no uploads to any site.
