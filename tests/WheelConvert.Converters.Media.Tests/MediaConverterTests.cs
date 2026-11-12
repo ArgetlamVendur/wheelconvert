@@ -38,7 +38,9 @@ public sealed class MediaConverterTests : IDisposable
     {
         var emptyDir = Path.Combine(_folder.Path, "empty");
         Directory.CreateDirectory(emptyDir);
-        var converter = new MediaConverter(() => null, c => ToolLocator.Find("ffmpeg", c, emptyDir, []), new FakeRunner().RunAsync);
+        // A configured path that does not exist yields "missing" without any PATH/registry/winget lookup,
+        // so this holds on machines where FFmpeg is installed.
+        var converter = new MediaConverter(() => Path.Combine(_folder.Path, "nowhere", FakeExeName), c => ToolLocator.Find("ffmpeg", c, emptyDir, []), new FakeRunner().RunAsync);
 
         var health = converter.CheckHealth();
 
