@@ -10,7 +10,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 04 | Wheel window | DONE | Claude Code (Opus) | Antigravity | PR #4 | Merged. File-safety critical; user wheel tests passed |
 | 05 | Tray + settings | DONE | Claude Code (Opus) | Claude Code (Fable) | PR #11 | Merged. 87 App tests incl. TrayMenuModel + StartupRegistration (scratch HKCU key); user tray tests not recorded here |
 | 06 | Image converter | REVIEW | Antigravity; fixes Claude Code (Opus) | Claude Code (Sonnet, then Fable) | PR #9 | First real conversion; review round 2 fixes in progress |
-| 07 | Media converter | REVIEW | Claude Code (Opus) | Claude Code (Fable) | PR #12 | 110/110 Media tests pass with real FFmpeg 9.0.2; tests 6–8 NEEDS USER; test 7 needs ToolLocator follow-up |
+| 07 | Media converter | REVIEW | Claude Code (Opus) | Claude Code (Fable) | PR #12 | 123/123 Media tests pass with real FFmpeg 9.0.2; tests 6–8 NEEDS USER; test 7 needs ToolLocator follow-up |
 | 08 | PDF operations | DONE | Claude Code (Opus) | Antigravity | PR #7 | Merged. PDFsharp pinned 6.2.4: 6.5.0+ is AGPL |
 | 09 | PDF reorder window | TODO | Sonnet | Fable | | Can start with a fake renderer |
 | 10 | QR reader | TODO | Sonnet | Fable | | |

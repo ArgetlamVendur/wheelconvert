@@ -340,6 +340,110 @@ public sealed class MediaConverterTests : IDisposable
         Assert.Equal("This file has no audio track.", result.Message);
     }
 
+    // ---- Re-review 2, R2: the "no audio track" result needs FFmpeg's whole closing sequence at fixed positions ----
+
+    [Fact]
+    public void Forged_no_streams_line_from_a_track_language_tag_cannot_choose_no_audio_track()
+    {
+        // Real stderr tail (FFmpeg 9.0.2, audio-only .mkv converted to GIF) when the track language was
+        // "x)<LF>Stream map '' matches no streams.<LF>z=". The forged line sits at column 0; the "z=" remainder looks like a progress line.
+        const string tail =
+            "  Stream #0:0(x)\n" +
+            "Stream map '' matches no streams.\n" +
+            "z=): Audio: pcm_s16le, 44100 Hz, mono, s16, 705 kb/s\n" +
+            "Output #0, gif, to 'C:\\Users\\u\\.~wc-1234.gif':\n" +
+            "[out#0/gif @ 000001953b3226c0] Output file does not contain any stream\n" +
+            "Error opening output file C:\\Users\\u\\.~wc-1234.gif.\n" +
+            "Error opening output files: Invalid argument\n";
+
+        var result = MediaConverter.MapFailure(tail, Path.Combine(_folder.Path, "a.mkv"), []);
+
+        Assert.Equal(ConversionError.ToolFailed, result.Error);
+        Assert.Equal("FFmpeg could not convert this file.", result.Message);
+    }
+
+    [Fact]
+    public void Progress_looking_lines_in_the_middle_are_not_removed_so_they_cannot_shift_a_forged_line_into_place()
+    {
+        // A forged no-streams line plus a "z=" line, then FFmpeg's closing lines. If "z=" were dropped, the forged line would sit at ^5.
+        var stderr = "Stream map '' matches no streams.\nz=): Audio\n" +
+            "To ignore this, add a trailing '?' to the map.\n" +
+            "Failed to set value '0:a:0' for option 'map': Invalid argument\n" +
+            "Error parsing options for output file x.mp3.\n" +
+            "Error opening output files: Invalid argument\n";
+
+        Assert.Equal(ConversionError.ToolFailed, MediaConverter.MapFailure(stderr, Path.Combine(_folder.Path, "a.mkv"), Mp3Encoder).Error);
+    }
+
+    [Fact]
+    public void No_audio_track_needs_the_no_streams_line_exactly_five_from_the_end()
+    {
+        // Check a3. A window (any of the last few lines) or "at least N lines" would accept the shifted variants.
+        var l = NoStreamsTail.TrimEnd('\n').Split('\n');
+        Assert.Equal(ConversionError.Unsupported, Map(string.Join('\n', l)).Error);
+
+        Assert.Equal(ConversionError.ToolFailed, Map($"x\nfiller\n{l[1]}\n{l[2]}\n{l[3]}\n{l[4]}").Error);                    // ^5 is not a no-streams line
+        Assert.Equal(ConversionError.ToolFailed, Map(string.Join('\n', l.Skip(1))).Error);                                // too few lines
+        Assert.Equal(ConversionError.ToolFailed, Map($"x\n{l[0]}\nf1\nf2\n{l[3]}\n{l[4]}").Error);                            // no-streams at ^5, rest filler
+        Assert.Equal(ConversionError.ToolFailed, Map($"x\n{l[0]}\n{l[1]}\nf2\n{l[3]}\n{l[4]}").Error);                        // filler at ^3
+        Assert.Equal(ConversionError.ToolFailed, Map($"{l[0]}\nf1\n{l[1]}\n{l[2]}\n{l[3]}\n{l[4]}").Error);                   // extra line after the no-streams line
+        Assert.Equal(ConversionError.ToolFailed, Map($"x\n{l[0]}\n{l[1]}\n{l[2]}\nf3\n{l[4]}").Error);                        // filler at ^2
+
+        ConversionResult Map(string stderr) => MediaConverter.MapFailure(stderr, Path.Combine(_folder.Path, "a.mkv"), Mp3Encoder);
+    }
+
+    [Theory]
+    [InlineData("Error opening output files: Cannot allocate memory")]
+    [InlineData("Conversion failed!")]
+    [InlineData("Error opening output files: Invalid argument.")]
+    public void No_audio_track_needs_ffmpegs_fixed_last_line(string lastLine)
+    {
+        // Check a4. The first four closing lines are right; the last line is not FFmpeg's.
+        var stderr = NoStreamsTail.Replace("Error opening output files: Invalid argument", lastLine, StringComparison.Ordinal);
+
+        var result = MediaConverter.MapFailure(stderr, Path.Combine(_folder.Path, "a.mkv"), Mp3Encoder);
+
+        Assert.Equal(ConversionError.ToolFailed, result.Error);
+    }
+
+    [Theory]
+    [InlineData("To ignore this, add a trailing '?' to the map.", "To ignore this, add a trailing '?' to the map")]
+    [InlineData("Failed to set value '0:a:0' for option 'map': Invalid argument", "Failed to set value '0:v:0' for option 'map': Invalid argument")]
+    [InlineData("Failed to set value '0:a:0' for option 'map': Invalid argument", "Failed to set value '0:a:0' for option 'map': Invalid argument x")]
+    [InlineData("Error parsing options for output file ", "Error opening output file ")]
+    public void No_audio_track_rejects_altered_closing_lines(string original, string replacement)
+    {
+        var stderr = NoStreamsTail.Replace(original, replacement, StringComparison.Ordinal);
+
+        Assert.Equal(ConversionError.ToolFailed, MediaConverter.MapFailure(stderr, Path.Combine(_folder.Path, "a.mkv"), Mp3Encoder).Error);
+    }
+
+    [Fact]
+    public void Missing_encoder_needs_the_unknown_encoder_line_exactly_four_from_the_end_with_the_same_prefix()
+    {
+        // Check a2: (1) filler lines around the encoder lines, so "Unknown encoder" is not at ^4; (2) a different pointer or kind in the two lines.
+        const string unknown = "[aost#0:0 @ 00000244fae69d40] Unknown encoder 'libmp3lame'\n";
+        const string selecting = "[aost#0:0 @ 00000244fae69d40] Error selecting an encoder\n";
+        const string closing = "Error opening output file out.mp3.\nError opening output files: Encoder not found\n";
+        var path = Path.Combine(_folder.Path, "a.wav");
+
+        Assert.Equal(ConversionError.ToolMissing, MediaConverter.MapFailure(unknown + selecting + closing, path, Mp3Encoder).Error);
+        Assert.Equal(ConversionError.ToolFailed, MediaConverter.MapFailure(unknown + "filler\n" + selecting + closing, path, Mp3Encoder).Error);
+        Assert.Equal(ConversionError.ToolFailed, MediaConverter.MapFailure(unknown + selecting + "filler\n" + closing, path, Mp3Encoder).Error);
+        Assert.Equal(ConversionError.ToolFailed, MediaConverter.MapFailure(unknown + selecting.Replace("9d40", "9d41", StringComparison.Ordinal) + closing, path, Mp3Encoder).Error);
+        Assert.Equal(ConversionError.ToolFailed, MediaConverter.MapFailure(unknown + selecting.Replace("aost", "vost", StringComparison.Ordinal) + closing, path, Mp3Encoder).Error);
+        Assert.Equal(ConversionError.ToolFailed, MediaConverter.MapFailure(unknown + selecting + closing.Replace("output file", "input file", StringComparison.Ordinal), path, Mp3Encoder).Error);
+    }
+
+    [Fact]
+    public void Blank_lines_at_the_very_end_are_ignored()
+    {
+        // N4: whitespace-only trailing lines do not turn a real diagnosis into the generic error.
+        var result = MediaConverter.MapFailure(NoStreamsTail + "   \n\n", Path.Combine(_folder.Path, "a.mkv"), Mp3Encoder);
+
+        Assert.Equal(ConversionError.Unsupported, result.Error);
+    }
+
     // ---- Re-review R1: the three demonstrated bypasses ----
 
     [Theory]

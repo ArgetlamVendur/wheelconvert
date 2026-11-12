@@ -191,6 +191,9 @@ public sealed partial class MediaConverter : IConverter
     // ProcessRunner's buffer prefixes stderr with this line when it dropped the start; the line after it is cut mid-line.
     private const string TruncationMarker = "[…truncated…]";
 
+    // The only -map value FfmpegArguments passes (audio targets); video-only targets pass none, so they can never match.
+    private const string AudioMap = "0:a:0";
+
     private const string OldInvalidDataSuffix = ": Invalid data found when processing input";
 
     /// <summary>The encoder names this conversion asked FFmpeg for (the <c>-c:a</c> / <c>-c:v</c> values).</summary>
@@ -213,7 +216,12 @@ public sealed partial class MediaConverter : IConverter
     /// stderr, so the code is decided only by FFmpeg's closing error lines, which nothing from the file can follow:
     /// <list type="bullet">
     /// <item>the last line must be one of FFmpeg's fixed error lines, compared as a whole line (no substring search);</item>
-    /// <item>the lines just before it must have FFmpeg's own whole-line shapes, anchored at both ends;</item>
+    /// <item>for "missing encoder" and "no audio track" the lines before it must be FFmpeg's whole closing sequence at
+    /// fixed positions (4 and 5 lines from the end), each compared whole-line. Text from the file can reach column 0 of
+    /// stderr, so it can fake any one such line, but FFmpeg's own error lines always come after it and fill the last
+    /// positions, so a file cannot supply the whole sequence;</item>
+    /// <item>only blank and progress lines at the very end are ignored; lines in the middle are never removed, because an
+    /// attacker-shaped line must not be able to move into a checked position;</item>
     /// <item>a partial first line left by ProcessRunner's truncation is discarded;</item>
     /// <item>an "Unknown encoder" result is reported only for an encoder this conversion requested (<paramref name="requestedEncoders"/>);</item>
     /// <item>anything else is the generic <see cref="ConversionError.ToolFailed"/>; no stderr text is ever copied into a message
@@ -230,7 +238,12 @@ public sealed partial class MediaConverter : IConverter
             lines.RemoveRange(0, Math.Min(2, lines.Count));
         }
 
-        lines = lines.Where(l => l.Length > 0 && !FfmpegProgressParser.IsProgressLine(l.Trim())).ToList();
+        // Trailing only: dropping progress-looking lines elsewhere would let a forged line (ending "z=") shift text into a checked position.
+        while (lines.Count > 0 && (string.IsNullOrWhiteSpace(lines[^1]) || FfmpegProgressParser.IsProgressLine(lines[^1].Trim())))
+        {
+            lines.RemoveAt(lines.Count - 1);
+        }
+
         if (lines.Count == 0)
         {
             return GenericFailure();
@@ -262,7 +275,11 @@ public sealed partial class MediaConverter : IConverter
         }
 
         if (last == "Error opening output files: Invalid argument"
-            && lines.Skip(Math.Max(0, lines.Count - 5)).Take(4).Any(l => NoStreamsPattern().IsMatch(l)))
+            && lines.Count >= 5
+            && NoStreamsPattern().IsMatch(lines[^5])
+            && lines[^4] == "To ignore this, add a trailing '?' to the map."
+            && lines[^3] == "Failed to set value '" + AudioMap + "' for option 'map': Invalid argument"
+            && lines[^2].StartsWith("Error parsing options for output file ", StringComparison.Ordinal))
         {
             // "-map 0:a:0" on a file without audio, e.g. a silent screen recording → Audio/MP3.
             return ConversionResult.Fail(ConversionError.Unsupported, "This file has no audio track.");

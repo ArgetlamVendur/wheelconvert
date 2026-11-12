@@ -149,6 +149,26 @@ public sealed class RealFfmpegTests(ITestOutputHelper log) : IDisposable
     }
 
     [FfmpegFact]
+    public async Task Track_language_with_line_breaks_cannot_fake_the_no_audio_track_error()
+    {
+        // R2 (options drop the muxer/encoder tags so the forged line is within the old 4-line window): an audio-only .mkv whose track language prints a forged complete line at column 0. It does have an audio
+        // track, so "This file has no audio track." would be wrong; the honest result is the generic failure (a GIF can't hold audio).
+        var source = _folder.File("audio-only.mkv");
+        await RealFfmpeg.GenerateAsync(
+            "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+            "-c:a", "pcm_s16le", "-live", "1", "-fflags", "+bitexact", "-metadata:s:a:0", "encoder=", "-metadata:s:a:0", "language=x)\nStream map '' matches no streams.\nz=", source);
+        var hash = TestFolder.Hash(source);
+
+        var result = await Converter().ConvertAsync(ConversionRequest.Create(source, TargetCatalog.VideoGif), new SafeOutputWriter(), null, CancellationToken.None);
+
+        log.WriteLine($"{result.Error}: {result.Message}");
+        Assert.Equal(ConversionError.ToolFailed, result.Error);
+        Assert.Equal("FFmpeg could not convert this file.", result.Message);
+        Assert.Equal(hash, TestFolder.Hash(source));
+        Assert.Single(Directory.GetFiles(_folder.Path));
+    }
+
+    [FfmpegFact]
     public async Task File_name_with_a_lone_surrogate_cannot_decide_the_error()
     {
         // A lone surrogate is legal on NTFS; FFmpeg echoes it as U+FFFD, so the printed path differs from the one we passed.
@@ -160,7 +180,7 @@ public sealed class RealFfmpegTests(ITestOutputHelper log) : IDisposable
         var result = await Converter().ConvertAsync(ConversionRequest.Create(source, TargetCatalog.VideoExtractMp3), new SafeOutputWriter(), null, CancellationToken.None);
 
         log.WriteLine($"{result.Error}: {result.Message}");
-        Assert.NotEqual(ConversionError.ToolMissing, result.Error);
+        Assert.Equal(ConversionError.ToolFailed, result.Error);
         Assert.DoesNotContain("libx264", result.Message, StringComparison.Ordinal);
         Assert.Single(Directory.GetFiles(_folder.Path));
     }
