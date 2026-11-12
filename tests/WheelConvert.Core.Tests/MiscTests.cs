@@ -167,6 +167,63 @@ public static class MiscTests
     }
 
     [Test]
+    public static void ToolLocator_FindsToolOnlyInUserPath_InstalledAfterStart()
+    {
+        // Simulates winget adding FFmpeg to the user PATH after the app started: the process PATH is stale.
+        using var stale = new TempDir();
+        using var user = new TempDir();
+        var name = OperatingSystem.IsWindows() ? "faketool.exe" : "faketool";
+        var inUser = user.File(name);
+
+        Assert.Equal(inUser, ToolLocator.Find("faketool", null, stale.Path, user.Path, null, []));
+        Assert.Equal(inUser, ToolLocator.Find("faketool", null, stale.Path, null, user.Path, []), "machine PATH is searched too");
+        Assert.True(ToolLocator.Find("faketool", null, stale.Path, null, null, []) is null);
+        Assert.True(ToolLocator.Find("faketool", Path.Combine(stale.Path, "nope"), null, user.Path, null, []) is null, "bad configured path must not fall back");
+    }
+
+    [Test]
+    public static void ToolLocator_SearchOrder_ProcessThenUserThenMachineThenExtras()
+    {
+        using var process = new TempDir();
+        using var user = new TempDir();
+        using var machine = new TempDir();
+        using var extra = new TempDir();
+        var name = OperatingSystem.IsWindows() ? "faketool.exe" : "faketool";
+        var inProcess = process.File(name);
+        var inUser = user.File(name);
+        var inMachine = machine.File(name);
+        var inExtra = extra.File(name);
+
+        Assert.Equal(inProcess, ToolLocator.Find("faketool", null, process.Path, user.Path, machine.Path, [extra.Path]));
+        Assert.Equal(inUser, ToolLocator.Find("faketool", null, "", user.Path, machine.Path, [extra.Path]));
+        Assert.Equal(inMachine, ToolLocator.Find("faketool", null, "", "", machine.Path, [extra.Path]));
+        Assert.Equal(inExtra, ToolLocator.Find("faketool", null, "", "", "", [extra.Path]));
+    }
+
+    [Test]
+    public static void ToolLocator_ExpandsVariablesInRegistryPath_AndToleratesDuplicates()
+    {
+        using var user = new TempDir();
+        var name = OperatingSystem.IsWindows() ? "faketool.exe" : "faketool";
+        var inUser = user.File(name);
+        const string varName = "WHEELCONVERT_TEST_TOOLDIR";
+        Environment.SetEnvironmentVariable(varName, user.Path);
+        try
+        {
+            // Registry PATH values are often REG_EXPAND_SZ with unexpanded %VARIABLES%.
+            Assert.Equal(inUser, ToolLocator.Find("faketool", null, "", "%" + varName + "%", null, []));
+
+            var sep = Path.PathSeparator.ToString();
+            var dupes = "\"" + user.Path + "\"" + sep + user.Path + Path.DirectorySeparatorChar + sep + " " + sep;
+            Assert.Equal(inUser, ToolLocator.Find("faketool", null, dupes, dupes, dupes, [user.Path]));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(varName, null);
+        }
+    }
+
+    [Test]
     public static void FileLog_WritesLines_AndRolls()
     {
         using var dir = new TempDir();
