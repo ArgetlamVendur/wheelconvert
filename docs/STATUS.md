@@ -10,7 +10,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 04 | Wheel window | DONE | Claude Code (Opus) | Antigravity | PR #4 | Merged. File-safety critical; user wheel tests passed |
 | 05 | Tray + settings | DONE | Claude Code (Opus) | Claude Code (Fable) | PR #11 | Merged. 87 App tests; user tray tests passed (notifications need Do not disturb off) |
 | 06 | Image converter | DONE | Antigravity; fixes Claude Code (Opus), last fix Fable | Claude Code (Sonnet ×3, Fable ×1) | PR #9 | Merged. Re-review 3 APPROVE (docs/reviews/WP-06-2026-11-12-rereview3.md); 54 xUnit tests pass (Release). Magick.NET pinned 15.0.0. User tests passed at Checkpoint 1 (2026-11-13) |
-| 07 | Media converter | TODO | Claude Code (Opus) | Claude Code (Fable) | | Needs FFmpeg for tests |
+| 07 | Media converter | DONE | Claude Code (Opus); review fixes Sonnet | Claude Code (Fable) | PR #12 | Merged. Re-review 3 APPROVE (docs/reviews/WP-07-2026-11-12.md); 123/123 Media tests pass with real FFmpeg 9.0.2. User tests 6–8 passed at Checkpoint 1 (2026-11-13). Follow-ups: stderr logging (needs ADR), input-format restriction, review note N7 |
 | 08 | PDF operations | DONE | Claude Code (Opus) | Antigravity | PR #7 | Merged. PDFsharp pinned 6.2.4: 6.5.0+ is AGPL |
 | 09 | PDF reorder window | TODO | Sonnet | Fable | | Can start with a fake renderer |
 | 10 | QR reader | TODO | Sonnet | Fable | | |

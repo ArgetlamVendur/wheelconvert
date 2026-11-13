@@ -8,5 +8,9 @@
   <ItemGroup>
     <ProjectReference Include="..\WheelConvert.Core\WheelConvert.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Tests use the internal constructor (fake locator/runner) so CI covers failure and cancel paths without FFmpeg. -->
+    <InternalsVisibleTo Include="WheelConvert.Converters.Media.Tests" />
+  </ItemGroup>
   <!-- No packages: FFmpeg runs through Core's ProcessRunner. -->
 </Project>

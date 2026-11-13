@@ -17,6 +17,9 @@ The base was created without NuGet access; versions are pinned per module as it 
 | Microsoft.NET.Test.Sdk | Converters.Pdf.Tests (test only, not shipped) | 18.11.0 | MIT (nuspec), 2026-10-22 | WP-08 |
 | xunit | Converters.Pdf.Tests (test only, not shipped) | 2.9.3 | Apache-2.0 (nuspec), 2026-10-22 | WP-08 |
 | xunit.runner.visualstudio | Converters.Pdf.Tests (test only, not shipped) | 4.0.1 | Apache-2.0 (nuspec), 2026-10-22 | WP-08 |
+| Microsoft.NET.Test.Sdk | Converters.Media.Tests (test only, not shipped) | 18.11.0 | MIT (nuspec), 2026-11-12 | WP-07 |
+| xunit | Converters.Media.Tests (test only, not shipped) | 2.9.3 | Apache-2.0 (nuspec), 2026-11-12 | WP-07 |
+| xunit.runner.visualstudio | Converters.Media.Tests (test only, not shipped) | 4.0.1 | Apache-2.0 (nuspec), 2026-11-12 | WP-07 |
 | ZXing.Net | Converters.Qr | _TBD_ | | WP-10 |
 | Microsoft.NET.Test.Sdk | WheelConvert.App.Tests | 18.11.0 | MIT | WP-03 |
 | xunit | WheelConvert.App.Tests | 2.9.3 | Apache-2.0 | WP-03 |
