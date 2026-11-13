@@ -20,14 +20,14 @@ When the user drops a PDF on "Reorder", show a window of page thumbnails they ca
 6. More than 300 pages → show a message "Too many pages to reorder here (N)." and return `null` (v1 limit; virtualisation is a follow-up).
 
 ## Acceptance tests
-| # | Who | Steps | Expected |
-|---|---|---|---|
-| 1 | Agent | Build App | 0 warnings |
-| 2 | Agent | View-model operations (small test or documented manual check) | Correct `Result` |
-| 3 | User | Drop a 5-page PDF on Reorder | Window with 5 thumbnails |
-| 4 | User | Drag page 5 to the front, remove page 2, Save | `doc (reordered).pdf` = 5,1,3,4 |
-| 5 | User | Cancel | No output |
-| 6 | User | Password-protected PDF | Message, no output |
+| # | Who | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1 | Agent | Build App | 0 warnings | PASS (Release build 0 warnings, 0 errors) |
+| 2 | Agent | View-model operations (small test or documented manual check) | Correct `Result` | PASS (20 xUnit tests in `PageOrderTests`) |
+| 3 | User | Drop a 5-page PDF on Reorder | Window with 5 thumbnails | NEEDS USER |
+| 4 | User | Drag page 5 to the front, remove page 2, Save | `doc (reordered).pdf` = 5,1,3,4 | NEEDS USER |
+| 5 | User | Cancel | No output | NEEDS USER |
+| 6 | User | Password-protected PDF | Message, no output | NEEDS USER (message mapping unit-tested only) |
 
 ## Start prompt
 ```
