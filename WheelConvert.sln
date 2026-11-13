@@ -26,6 +26,7 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WheelConvert.App.Tests", "tests\WheelConvert.App.Tests\WheelConvert.App.Tests.csproj", "{801D2FB4-31F0-4C90-B011-3C172F7584BA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WheelConvert.Converters.Media.Tests", "tests\WheelConvert.Converters.Media.Tests\WheelConvert.Converters.Media.Tests.csproj", "{19B5E52E-30D0-4BB9-B3E6-5881C4EEAA76}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WheelConvert.Converters.Image.Tests", "tests\WheelConvert.Converters.Image.Tests\WheelConvert.Converters.Image.Tests.csproj", "{47FCEB95-97E0-4557-AC43-45D75577F3D2}"
 EndProject
 Global
