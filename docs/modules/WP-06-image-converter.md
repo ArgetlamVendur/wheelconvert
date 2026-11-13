@@ -33,18 +33,26 @@ Convert between image formats: targets `image.jpg`, `image.png`, `image.webp`, `
 - `MagickImage` is `IDisposable`: `using` everywhere.
 - Don't use `System.Drawing` (Windows-only, breaks the net8.0 rule).
 
+## Implementation notes (deviations from the requirements above)
+- **Policy API (req. 4):** the code loads the deny policy with `ConfigurationFiles` + `MagickNET.Initialize`, not `MagickNET.SetSecurityPolicy`. Same effect (a `policy.xml` in force before the first image call). Initialize also replaces the package's other default config files in one call. The deny list is wider than required: also TXT, HTTP, HTTPS, FTP, plus the path rules `@*` and `|*`.
+- **URL and EPHEMERAL rules are inert in Magick.NET 15.0.0** (probed 2026-11-10). No coder by either name is registered: the URL module's coders are HTTP, HTTPS and (Windows build only) FTP, which are denied and tested. The Linux build of the package registers no FTP coder, so the FTP rule is inert there and the test expects a missing-delegate error instead. The rules stay as defence in depth. Two tripwire tests fail if an upgrade makes them reachable. See the comment in `InitializeSecurityAndLimits`.
+- **Image too large (req. 5/6):** the header is read first with `MagickImageInfo` (explicit format), and width or height above `ResourceLimits.Width/Height` returns `Fail(Unsupported, "Image is too large.")` before decoding. The native limits stay as a backstop.
+- **Write errors (req. 5):** only `MagickBlobErrorException`, `IOException` and `UnauthorizedAccessException` during write map to `OutputFailed`. Encoder errors go to the other handlers.
+- **Read errors:** a source that cannot be opened (locked by another app, no permission) returns `Fail(CorruptInput, "Couldn't read the source file. It may be open in another app.")`, or `SourceMissing` if the file is gone. It is never reported as `OutputFailed`. CONTRACTS C1 has no code for "source unreadable"; `CorruptInput` is the closest row and is what such a read returned before.
+- **Init failure:** `CheckHealth()` and `ConvertAsync` show the fixed text "Image library failed to load.". The exception detail is not logged: the frozen parameterless constructor gives the converter no `ILog` (follow-up).
+
 ## Acceptance tests (xUnit unless marked User)
-| # | Test | Expected |
-|---|---|---|
-| 1 | PNG with alpha → JPG | Output exists, white background, source byte-identical before/after |
-| 2 | JPG → PNG/WebP/ICO | Valid files (re-open with Magick), ICO contains 6 sizes |
-| 3 | EXIF-rotated JPG → PNG | Output upright |
-| 4 | Truncated/corrupt JPG | `Fail(CorruptInput)`, **no `.~wc-` file left** |
-| 5 | Output name already exists | `photo (converted 2).jpg`, original output untouched |
-| 6 | Cancellation token cancelled before start | `OperationCanceledException`, no temp file left |
-| 7 | User: real iPhone HEIC → JPG | Correct image |
-| 7a | MVG payload (`push graphic-context … image over 0,0 0,0 'file.txt'`) saved as `evil.png` → JPG | `Fail(CorruptInput)`; **no new files in the folder**; `file.txt` not read |
-| 8 | User: through the wheel end-to-end (after WP-11) | Output next to source, notification shown |
+| # | Test | Expected | Result (2026-11-10, Windows local, Release) |
+|---|---|---|---|
+| 1 | PNG with alpha → JPG | Output exists, white background, source byte-identical before/after | PASS |
+| 2 | JPG → PNG/WebP/ICO | Valid files (re-open with Magick), ICO contains 6 sizes | PASS |
+| 3 | EXIF-rotated JPG → PNG | Output upright | PASS |
+| 4 | Truncated/corrupt JPG | `Fail(CorruptInput)`, **no `.~wc-` file left** | PASS |
+| 5 | Output name already exists | `photo (converted 2).jpg`, original output untouched | PASS |
+| 6 | Cancellation token cancelled before start | `OperationCanceledException`, no temp file left | PASS |
+| 7 | User: real iPhone HEIC → JPG | Correct image | NEEDS USER |
+| 7a | MVG payload (`push graphic-context … image over 0,0 0,0 'file.txt'`) saved as `evil.png` → JPG | `Fail(CorruptInput)`; **no new files in the folder**; `file.txt` not read | PASS |
+| 8 | User: through the wheel end-to-end (after WP-11) | Output next to source, notification shown | NEEDS USER |
 
 ## Start prompt
 ```
