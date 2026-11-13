@@ -9,15 +9,15 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 03 | Hotkey trigger | DONE | Antigravity | Claude Code | PR #6 | Merged. 36 App tests (incl. STA RegisterHotKey); message-only window |
 | 04 | Wheel window | DONE | Claude Code (Opus) | Antigravity | PR #4 | Merged. File-safety critical; user wheel tests passed |
 | 05 | Tray + settings | DONE | Claude Code (Opus) | Claude Code (Fable) | PR #11 | Merged. 87 App tests; user tray tests passed (notifications need Do not disturb off) |
-| 06 | Image converter | REVIEW | Antigravity, then Claude Code (Opus) for re-review fixes, then Claude Code (Fable) for the Re-review 2 fix (N1 + source-read mapping) | Claude Code (Sonnet) ×2, Fable ×1; next: a model other than Fable, fresh session, only the last fix commit | PR #9 | Re-review 2 N1 fixed (FTP test is coder-aware); unreadable source no longer reported as OutputFailed; 54 xUnit tests pass (Release). Magick.NET pinned 15.0.0. User tests 7 (HEIC) and 8 pending |
+| 06 | Image converter | DONE | Antigravity; fixes Claude Code (Opus), last fix Fable | Claude Code (Sonnet ×3, Fable ×1) | PR #9 | Merged. Re-review 3 APPROVE (docs/reviews/WP-06-2026-11-12-rereview3.md); 54 xUnit tests pass (Release). Magick.NET pinned 15.0.0. User tests passed at Checkpoint 1 (2026-11-13) |
 | 07 | Media converter | TODO | Claude Code (Opus) | Claude Code (Fable) | | Needs FFmpeg for tests |
 | 08 | PDF operations | DONE | Claude Code (Opus) | Antigravity | PR #7 | Merged. PDFsharp pinned 6.2.4: 6.5.0+ is AGPL |
-| 09 | PDF reorder window | TODO | Claude Code (Opus) | Claude Code (Fable) | | Can start with a fake renderer |
-| 10 | QR reader | TODO | Claude Code (Opus) | Claude Code (Fable) | | |
+| 09 | PDF reorder window | TODO | Sonnet | Fable | | Can start with a fake renderer |
+| 10 | QR reader | TODO | Sonnet | Fable | | |
 | 11 | Integration | DONE | Claude Code (Opus) | Antigravity | PR #2 (b234417) | Merged |
-| 12 | Packaging + release | TODO | Claude Code (Opus) | Claude Code (Fable) | | Includes Defender go/no-go |
+| 12 | Packaging + release | TODO | Sonnet | Fable | | Includes Defender go/no-go |
 
-From 2026-11-10 only Claude models are used: the reviewer must be a different model from the builder, in a fresh session (AGENTS.md §2).
+From 2026-11-10 only Claude models are used: the reviewer must be a different model from the builder, in a fresh session (AGENTS.md §2). From 2026-11-12 the remaining work runs as an orchestrated run (AGENTS.md §9).
 
 ## Not yet verified anywhere
 - Shift-drag hook vs. antivirus: unknown until WP-12's go/no-go.
