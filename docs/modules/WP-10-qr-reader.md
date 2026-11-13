@@ -20,16 +20,16 @@
 7. Same resource limits as WP-06 (decompression bombs).
 
 ## Acceptance tests (xUnit; generate QR images in the test with ZXing's writer)
-| # | Test | Expected |
-|---|---|---|
-| 1 | PNG with one QR "hello" | `OkText("hello")` |
-| 2 | Small QR in a large screenshot-like image | Found (upscale retry) |
-| 3 | Two QRs | Both, newline-separated, ordered |
-| 4 | No QR | `Fail(NoResult)` |
-| 5 | Inverted (white-on-black) QR | Found |
-| 6 | Source unchanged; no files created in the folder | ✔ |
-| 6a | MVG payload saved as `evil.png` | `Fail(CorruptInput)`, no files created, nothing read |
-| 7 | User: screenshot of a QR → wheel → QR | Notification shows text; clipboard has it |
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | PNG with one QR "hello" | `OkText("hello")` | PASS (T1_SingleQr_ReturnsText) |
+| 2 | Small QR in a large screenshot-like image | Found (upscale retry) | PASS (T2: 52 px code in 1600x900; fails with the retry disabled) |
+| 3 | Two QRs | Both, newline-separated, ordered | PASS (T3, T3b) |
+| 4 | No QR | `Fail(NoResult)` | PASS (T4) |
+| 5 | Inverted (white-on-black) QR | Found | PASS (T5) |
+| 6 | Source unchanged; no files created in the folder | ✔ | PASS (T6) |
+| 6a | MVG payload saved as `evil.png` | `Fail(CorruptInput)`, no files created, nothing read | PASS (T6a) |
+| 7 | User: screenshot of a QR → wheel → QR | Notification shows text; clipboard has it | NEEDS USER (needs WP-11 wiring and a real screenshot) |
 
 ## Start prompt
 ```

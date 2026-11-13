@@ -20,7 +20,11 @@ The base was created without NuGet access; versions are pinned per module as it 
 | Microsoft.NET.Test.Sdk | Converters.Media.Tests (test only, not shipped) | 18.11.0 | MIT (nuspec), 2026-11-12 | WP-07 |
 | xunit | Converters.Media.Tests (test only, not shipped) | 2.9.3 | Apache-2.0 (nuspec), 2026-11-12 | WP-07 |
 | xunit.runner.visualstudio | Converters.Media.Tests (test only, not shipped) | 4.0.1 | Apache-2.0 (nuspec), 2026-11-12 | WP-07 |
-| ZXing.Net | Converters.Qr | _TBD_ | | WP-10 |
+| ZXing.Net | Converters.Qr | 0.16.11 | Apache-2.0 (nuspec `<license type="expression">`, checked 2026-11-13). No dependencies on net8.0; package ships no separate licence/notice file, only docs/README.md | WP-10 |
+| Magick.NET-Q8-AnyCPU | Converters.Qr | 15.0.0 | Same version as WP-06 (see row above and the notice table below; Apache-2.0 nuspec) | WP-10 |
+| Microsoft.NET.Test.Sdk | Converters.Qr.Tests (test only, not shipped) | 18.11.0 | MIT | WP-10 |
+| xunit | Converters.Qr.Tests (test only, not shipped) | 2.9.3 | Apache-2.0 | WP-10 |
+| xunit.runner.visualstudio | Converters.Qr.Tests (test only, not shipped) | 4.0.1 | Apache-2.0 | WP-10 |
 | Microsoft.NET.Test.Sdk | WheelConvert.App.Tests | 18.11.0 | MIT | WP-03 |
 | xunit | WheelConvert.App.Tests | 2.9.3 | Apache-2.0 | WP-03 |
 | xunit.runner.visualstudio | WheelConvert.App.Tests | 4.0.1 | Apache-2.0 | WP-03 |
