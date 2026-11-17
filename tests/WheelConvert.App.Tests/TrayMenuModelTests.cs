@@ -108,10 +108,12 @@ public class TrayMenuModelTests
     }
 
     [Fact]
-    public void Not_implemented_converter_says_not_available_yet()
+    public void Not_implemented_converter_is_left_out_and_menu_shows_all_ready()
     {
-        var line = Assert.Single(Model(new AppSettings(), ("qr", ConverterHealth.NotImplemented)).StatusLines);
-        Assert.Equal("QR codes: not available in this version yet", line);
+        var model = Model(new AppSettings(), ("qr", ConverterHealth.NotImplemented));
+        Assert.True(model.AllReady);
+        Assert.Equal([TrayMenuModel.AllReadyLine], model.StatusLines);
+        Assert.DoesNotContain(model.StatusLines, l => l.Contains("QR", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -129,12 +131,22 @@ public class TrayMenuModelTests
     }
 
     [Fact]
-    public void One_line_per_unavailable_converter_in_order()
+    public void Not_implemented_converter_is_left_out_next_to_a_real_problem()
     {
         var model = Model(new AppSettings(), ("media", ConverterHealth.Missing("x")), ("qr", ConverterHealth.NotImplemented));
+        Assert.False(model.AllReady);
+        Assert.Equal(["Audio/video: install FFmpeg (winget install Gyan.FFmpeg)"], model.StatusLines);
+        Assert.DoesNotContain(model.StatusLines, l => l.Contains("QR", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void One_line_per_unavailable_converter_in_order()
+    {
+        var pdf = new ConverterHealth(false, ConversionError.Unknown, "Couldn't load the PDF engine.");
+        var model = Model(new AppSettings(), ("media", ConverterHealth.Missing("x")), ("pdf", pdf));
         Assert.Equal(2, model.StatusLines.Count);
         Assert.StartsWith("Audio/video:", model.StatusLines[0]);
-        Assert.StartsWith("QR codes:", model.StatusLines[1]);
+        Assert.StartsWith("PDF:", model.StatusLines[1]);
     }
 
     [Fact]

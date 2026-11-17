@@ -59,7 +59,11 @@ public sealed record TrayMenuModel
         ArgumentNullException.ThrowIfNull(unavailable);
         var normalized = settings.Normalize();
 
-        var lines = unavailable.Select(u => StatusLine(u.ConverterId, u.Health, normalized)).ToList();
+        // Stubs report NotImplemented: not something the user can fix, so they get no line (same rule as AppHost's start-up warning).
+        var lines = unavailable
+            .Where(u => u.Health.Reason != ConversionError.NotImplemented)
+            .Select(u => StatusLine(u.ConverterId, u.Health, normalized))
+            .ToList();
         IReadOnlyList<string> statusLines = lines.Count == 0 ? [AllReadyLine] : lines;
 
         return new TrayMenuModel(HeaderText(version), HowToText(normalized), normalized.Trigger, statusLines, lines.Count == 0);
