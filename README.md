@@ -18,7 +18,7 @@ Hold **Shift** and drag a file in Windows Explorer (or press **Ctrl+Alt+Space**)
 1. Download `WheelConvert-Setup-<version>.exe` from the [Releases](../../releases) page. It installs for your user only and asks for no administrator rights.
 2. The app needs the **.NET 8 Desktop Runtime** (x64). The installer tells you if it is missing and links to the download.
 3. Optional: tick "Start with Windows" in the installer, or later from the tray menu.
-4. Prefer no installer? Download the portable zip, unzip it anywhere and run `WheelConvert.exe`.
+4. Prefer no installer? Download the portable zip, unzip it anywhere (keep all the files together; the `.dll` files next to `WheelConvert.exe` are part of the app) and run `WheelConvert.exe`.
 5. Check the download against `SHA256SUMS.txt` from the same release page (in PowerShell: `Get-FileHash .\WheelConvert-Setup-<version>.exe`).
 
 The releases are **not code-signed yet**. If SmartScreen says "Windows protected your PC", choose "More info" then "Run anyway" only if the checksum matches.
