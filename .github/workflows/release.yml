@@ -71,17 +71,24 @@ jobs:
           }
 
       # Same command as build.yml, so the released exe is what CI already tested.
-      - name: Publish app (framework-dependent, single file)
-        run: dotnet publish src/WheelConvert.App -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+      - name: Publish app (framework-dependent, single-file managed code, native DLLs beside it)
+        run: dotnet publish src/WheelConvert.App -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false -o publish
 
-      - name: Stage files (exe, licences)
+      - name: Stage files (exe, native DLLs, licences)
         shell: pwsh
         run: |
           $exe = Get-Item publish/WheelConvert.exe
           if ($exe.Length -lt 1MB) { throw "publish/WheelConvert.exe is suspiciously small ($($exe.Length) bytes)." }
           New-Item -ItemType Directory -Force dist/licenses | Out-Null
-          Copy-Item $exe.FullName dist/
+          # Every published file except debug symbols: WheelConvert.exe plus the native DLLs that stay beside it
+          # (Magick.Native, libSkiaSharp, pdfium), so the LGPL libraries inside Magick.Native can be replaced (THIRD-PARTY-NOTICES.md).
+          Get-ChildItem publish -File | Where-Object { $_.Extension -ne '.pdb' } | Copy-Item -Destination dist/
+          foreach ($need in 'Magick.Native-Q8-x64.dll', 'libSkiaSharp.dll', 'pdfium.dll') {
+            if (-not (Test-Path "dist/$need")) { throw "Expected native library missing from the publish output: $need" }
+          }
           Copy-Item LICENSE, THIRD-PARTY-NOTICES.md dist/
+          # PDFium licence texts, copied from the pdfium-binaries chromium/7961 release archive (source and SHA-256 in THIRD-PARTY-NOTICES.md).
+          Copy-Item installer/licenses/pdfium dist/licenses/pdfium -Recurse
           # The packages' own notice files, for exactly the versions in packages.lock.json (ADR-010).
           # A missing file fails the build on purpose: it means a package version changed and THIRD-PARTY-NOTICES.md needs a re-check.
           $pk = Join-Path $env:USERPROFILE '.nuget/packages'
@@ -89,7 +96,13 @@ jobs:
             @('magick.net-q8-anycpu/15.0.0/Notice.txt',                        'Magick.NET-Q8-AnyCPU-15.0.0-Notice.txt'),
             @('magick.net.core/15.0.0/Copyright.txt',                          'Magick.NET.Core-15.0.0-Copyright.txt'),
             @('skiasharp.nativeassets.win32/4.150.1/LICENSE.txt',              'SkiaSharp-4.150.1-LICENSE.txt'),
-            @('skiasharp.nativeassets.win32/4.150.1/THIRD-PARTY-NOTICES.txt',  'SkiaSharp-4.150.1-THIRD-PARTY-NOTICES.txt')
+            @('skiasharp.nativeassets.win32/4.150.1/THIRD-PARTY-NOTICES.txt',  'SkiaSharp-4.150.1-THIRD-PARTY-NOTICES.txt'),
+            @('microsoft.extensions.dependencyinjection.abstractions/8.0.2/LICENSE.TXT',            'Microsoft.Extensions.DependencyInjection.Abstractions-8.0.2-LICENSE.txt'),
+            @('microsoft.extensions.dependencyinjection.abstractions/8.0.2/THIRD-PARTY-NOTICES.TXT', 'Microsoft.Extensions.DependencyInjection.Abstractions-8.0.2-THIRD-PARTY-NOTICES.txt'),
+            @('microsoft.extensions.logging.abstractions/8.0.3/LICENSE.TXT',                        'Microsoft.Extensions.Logging.Abstractions-8.0.3-LICENSE.txt'),
+            @('microsoft.extensions.logging.abstractions/8.0.3/THIRD-PARTY-NOTICES.TXT',            'Microsoft.Extensions.Logging.Abstractions-8.0.3-THIRD-PARTY-NOTICES.txt'),
+            @('system.security.cryptography.pkcs/8.0.1/LICENSE.TXT',                                'System.Security.Cryptography.Pkcs-8.0.1-LICENSE.txt'),
+            @('system.security.cryptography.pkcs/8.0.1/THIRD-PARTY-NOTICES.TXT',                    'System.Security.Cryptography.Pkcs-8.0.1-THIRD-PARTY-NOTICES.txt')
           )
           foreach ($n in $notices) {
             $src = Join-Path $pk $n[0]
