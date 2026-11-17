@@ -15,7 +15,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 09 | PDF reorder window | DONE | Sonnet | Opus (Fable first review) | PR #16 | Merged. Re-review APPROVE (docs/reviews/WP-09-2026-11-13.md); 27 PageOrderTests (6 STA window tests). User tests passed at Checkpoint 2 (2026-11-17) |
 | 10 | QR reader | SHELVED (user, 2026-11-17) | Sonnet | — | wp-10-qr (draft PR #17) | Built at 0fc6443, not reviewed; QR stub stays on main so no QR segment shows |
 | 11 | Integration | DONE | Claude Code (Opus) | Antigravity | PR #2 (b234417) | Merged |
-| 12 | Packaging + release | IN PROGRESS (Sonnet) | Sonnet | Opus | wp-12-release | Includes Defender go/no-go |
+| 12 | Packaging + release | REVIEW | Sonnet | Opus | wp-12-release | Includes Defender go/no-go |
 
 From 2026-11-10 only Claude models are used: the reviewer must be a different model from the builder, in a fresh session (AGENTS.md §2). From 2026-11-12 the remaining work runs as an orchestrated run (AGENTS.md §9).
 From 2026-11-17 Opus replaces Fable as orchestrator and reviewer.

@@ -23,12 +23,12 @@ A downloadable, installable release on GitHub, with licences in order and the an
 8. `winget` manifest: draft only, in `installer/winget/`, not submitted.
 
 ## Acceptance tests
-| # | Who | Steps | Expected |
-|---|---|---|---|
-| 1 | Agent | Push tag `v0.1.0-rc1` in a fork/branch | Draft release with 3 assets |
-| 2 | User | Install on a clean Windows user account | Starts, tray icon, no admin prompt |
-| 3 | User | Uninstall | Run key gone, program folder gone |
-| 4 | User | Defender + VirusTotal | Results recorded in GO-NO-GO.md |
+| # | Who | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1 | Agent | Push tag `v0.1.0-rc1` in a fork/branch | Draft release with 3 assets | NEEDS USER (tag push is the user's step). Pipeline proven without a tag by the `release.yml` pull_request run, which builds and uploads the same 3 files as workflow artifacts: see PR |
+| 2 | User | Install on a clean Windows user account | Starts, tray icon, no admin prompt | NEEDS USER (installer not run by the agent; `iscc` compiled in CI only) |
+| 3 | User | Uninstall | Run key gone, program folder gone | NEEDS USER |
+| 4 | User | Defender + VirusTotal | Results recorded in GO-NO-GO.md | NEEDS USER (template in `docs/GO-NO-GO.md`, table empty) |
 
 ## Start prompt
 ```
