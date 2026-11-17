@@ -32,5 +32,10 @@ dotnet build WheelConvert.sln                         # Windows (the App needs W
 dotnet run --project tests/WheelConvert.Core.Tests    # any OS; exit code 0 = all tests pass
 ```
 
+Building from source needs the .NET 8 SDK 8.0.400 or later (the repo has a `global.json`).
+
+## Troubleshooting
+- No notifications appear: check that Windows "Do not disturb" (Focus) is off.
+
 ## Licence
 MIT (see `LICENSE`, added in WP-12). Third-party licences: `docs/decisions/ADR-005-licensing.md`.
