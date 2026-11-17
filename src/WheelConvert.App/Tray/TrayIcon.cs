@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Windows.Threading;
+using WheelConvert.App.Interop;
 using WheelConvert.Core.Contracts;
 using WheelConvert.Core.Formats;
 using WheelConvert.Core.Infrastructure;
@@ -31,6 +32,12 @@ public sealed class TrayIcon : INotifier, IDisposable
     private readonly FormatRegistry _registry;
     private readonly StartupRegistration _startup = new();
     private readonly string? _version;
+
+    // The frozen constructor has no ILog, so reveal failures go to the same default log file directly.
+    private readonly FileLog _revealLog = new(FileLog.DefaultPath);
+
+    private static readonly string ExplorerPath =
+        IOPath.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
 
     private readonly Forms.ContextMenuStrip _menu;
     private readonly Forms.ToolStripMenuItem _header;
@@ -142,14 +149,14 @@ public sealed class TrayIcon : INotifier, IDisposable
     {
         var pending = _pendingReveal;
         _pendingReveal = null;
-        if (pending is not string path || !IOPath.IsPathFullyQualified(path) || !(File.Exists(path) || Directory.Exists(path)))
+        if (pending is not string path || !IOPath.IsPathFullyQualified(path))
         {
             return;
         }
 
-        // Req. 2: Explorer with the file selected. Path is a separate argument (never a shell string), and fully
-        // qualified, so an untrusted file name can't be read as an Explorer switch (AGENTS §4.10).
-        StartExplorer(new ProcessStartInfo("explorer.exe") { ArgumentList = { "/select,", path } });
+        // Req. 2: Explorer with the file selected, through the Shell API so a comma or leading dash in the file name
+        // can't be read as an Explorer switch (AGENTS §4.10). ShellReveal checks the file still exists and logs. Fire and forget: it runs on its own STA thread.
+        _ = ShellReveal.RevealAsync(path, _revealLog);
     }
 
     private void OnBalloonClosed(object? sender, EventArgs e) => _pendingReveal = null;
@@ -280,10 +287,10 @@ public sealed class TrayIcon : INotifier, IDisposable
             return;
         }
 
-        StartExplorer(new ProcessStartInfo("explorer.exe") { ArgumentList = { path } });
+        StartExplorer(new ProcessStartInfo(ExplorerPath) { ArgumentList = { path }, UseShellExecute = false });
     }
 
-    /// <summary>The only Process.Start outside ProcessRunner (WP-05 req. 2): explorer.exe, argument list, no shell.</summary>
+    /// <summary>The only Process.Start outside ProcessRunner (WP-05 req. 2): explorer.exe by full path, argument list, no shell.</summary>
     private void StartExplorer(ProcessStartInfo startInfo)
     {
         try
