@@ -138,7 +138,8 @@ jobs:
           $lines = Get-ChildItem -File | Where-Object { $_.Name -ne 'SHA256SUMS.txt' } | Sort-Object Name | ForEach-Object {
             "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
           }
-          $lines | Set-Content -Encoding ascii SHA256SUMS.txt
+          # LF endings and no BOM, so `sha256sum -c SHA256SUMS.txt` works on Linux, WSL and Git Bash.
+          [IO.File]::WriteAllText((Join-Path (Get-Location) 'SHA256SUMS.txt'), (($lines -join "`n") + "`n"), (New-Object Text.UTF8Encoding($false)))
           Get-Content SHA256SUMS.txt
           Get-ChildItem
 

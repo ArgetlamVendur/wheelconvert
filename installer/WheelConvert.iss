@@ -45,6 +45,9 @@ SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
 RestartApplications=no
+; Must match MutexName in src/WheelConvert.App/App.xaml.cs (the app creates "Local\WheelConvert.SingleInstance"; Setup
+; opens the bare name, which resolves to the same per-session object). Setup and the uninstaller then ask the user to close a running app.
+AppMutex=WheelConvert.SingleInstance
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
