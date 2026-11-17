@@ -24,7 +24,7 @@ From 2026-11-17 Opus replaces Fable as orchestrator and reviewer.
 - Shift-drag hook vs. antivirus: unknown until WP-12's go/no-go.
 
 ## Open questions for the user
-- Copyright holder name for `LICENSE` (WP-12).
-- Make the GitHub repo public now or at the first release?
 - Default trigger mode: Shift-drag (current; hotkey off unless the hook fails) or Both? WP-05's tray menu lets you switch either way.
 - Strip GPS location from converted photos (WP-06 follow-up)? On by default?
+- Licence: get professional advice on the LGPL/MPL libraries inside Magick.Native (now shipped as a separate DLL next to the exe).
+- Licence: are SkiaSharp's libmicrohttpd and gif compiled into the Windows libSkiaSharp.dll? (ask the SkiaSharp maintainers)
