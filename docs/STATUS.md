@@ -13,11 +13,12 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 07 | Media converter | DONE | Claude Code (Opus); review fixes Sonnet | Claude Code (Fable) | PR #12 | Merged. Re-review 3 APPROVE (docs/reviews/WP-07-2026-11-12.md); 123/123 Media tests pass with real FFmpeg 9.0.2. User tests 6–8 passed at Checkpoint 1 (2026-11-13). Follow-ups: stderr logging (needs ADR), input-format restriction, review note N7 |
 | 08 | PDF operations | DONE | Claude Code (Opus) | Antigravity | PR #7 | Merged. PDFsharp pinned 6.2.4: 6.5.0+ is AGPL |
 | 09 | PDF reorder window | DONE | Sonnet | Opus (Fable first review) | PR #16 | Merged. Re-review APPROVE (docs/reviews/WP-09-2026-11-13.md); 27 PageOrderTests (6 STA window tests). User tests passed at Checkpoint 2 (2026-11-17) |
-| 10 | QR reader | TODO | Sonnet | Fable | | |
+| 10 | QR reader | SHELVED (user, 2026-11-17) | Sonnet | — | wp-10-qr (draft PR #17) | Built at 0fc6443, not reviewed; QR stub stays on main so no QR segment shows |
 | 11 | Integration | DONE | Claude Code (Opus) | Antigravity | PR #2 (b234417) | Merged |
-| 12 | Packaging + release | TODO | Sonnet | Fable | | Includes Defender go/no-go |
+| 12 | Packaging + release | TODO | Sonnet | Opus | | Includes Defender go/no-go |
 
 From 2026-11-10 only Claude models are used: the reviewer must be a different model from the builder, in a fresh session (AGENTS.md §2). From 2026-11-12 the remaining work runs as an orchestrated run (AGENTS.md §9).
+From 2026-11-17 Opus replaces Fable as orchestrator and reviewer.
 
 ## Not yet verified anywhere
 - Shift-drag hook vs. antivirus: unknown until WP-12's go/no-go.

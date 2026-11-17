@@ -627,6 +627,26 @@ public sealed class ImageConverterTests : IDisposable
     }
 
     [Fact]
+    public async Task ConvertAsync_WebpOutputOver16383Px_FailsUnsupportedBeforeEncodingAndWritesNothing()
+    {
+        var sourcePath = Path.Combine(_testDir, "wide_1px.png");
+        using (var img = new MagickImage(MagickColors.Red, 16384, 1))
+        {
+            await img.WriteAsync(sourcePath, MagickFormat.Png);
+        }
+
+        var request = ConversionRequest.Create(sourcePath, TargetCatalog.ImageWebp);
+        var result = await _converter.ConvertAsync(request, _writer, null, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(ConversionError.Unsupported, result.Error);
+        Assert.Equal("Image is too large for WebP.", result.Message);
+        Assert.Empty(Directory.GetFiles(_testDir, "*.webp"));
+        Assert.Empty(Directory.GetFiles(_testDir, SafeOutputWriter.TempPrefix + "*"));
+        Assert.Equal(new[] { sourcePath }, Directory.GetFiles(_testDir));
+    }
+
+    [Fact]
     public async Task ConvertAsync_ImageExceeding30000Px_ReturnsUnsupportedWithImageTooLargeMessage()
     {
         var sourcePath = Path.Combine(_testDir, "huge_30001.bmp");

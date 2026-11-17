@@ -18,6 +18,10 @@ public sealed class ImageConverter : IConverter
 
     private static readonly bool IsSecurityInitialized;
 
+    // The WebP format stores each dimension in 14 bits, so the encoder fails above this.
+    private const uint WebpMaxDimension = 16383;
+    private const string WebpTooLargeMessage = "Image is too large for WebP.";
+
     private static readonly HashSet<string> Inputs = new(StringComparer.Ordinal)
     {
         ".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".bmp", ".tif", ".tiff", ".gif", ".ico", ".avif",
@@ -179,6 +183,10 @@ public sealed class ImageConverter : IConverter
         {
             return ConversionResult.Fail(ConversionError.Unsupported, "Image format or variant is not supported.");
         }
+        catch (WebpTooLargeException)
+        {
+            return ConversionResult.Fail(ConversionError.Unsupported, WebpTooLargeMessage);
+        }
         catch (Exception ex) when (ex is ImageTooLargeException or MagickResourceLimitErrorException or MagickCacheErrorException)
         {
             return ConversionResult.Fail(ConversionError.Unsupported, "Image is too large.");
@@ -244,6 +252,11 @@ public sealed class ImageConverter : IConverter
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 frame.AutoOrient();
+                if (frame.Width > WebpMaxDimension || frame.Height > WebpMaxDimension)
+                {
+                    throw new WebpTooLargeException();
+                }
+
                 frame.Quality = quality;
             }
 
@@ -286,6 +299,11 @@ public sealed class ImageConverter : IConverter
         }
         else if (request.Target.Id == TargetCatalog.ImageWebp.Id)
         {
+            if (image.Width > WebpMaxDimension || image.Height > WebpMaxDimension)
+            {
+                throw new WebpTooLargeException();
+            }
+
             var quality = ResolveQuality(request, 85);
             image.Quality = quality;
             WriteImage(image, tempPath, MagickFormat.WebP);
@@ -408,4 +426,6 @@ public sealed class ImageConverter : IConverter
     private sealed class SourceReadException(Exception inner) : Exception("The source file could not be read.", inner);
 
     private sealed class ImageTooLargeException : Exception;
+
+    private sealed class WebpTooLargeException : Exception;
 }
