@@ -1,0 +1,184 @@
+name: release
+
+# On a tag "v*": build, test, publish, build the installer and the portable zip, then create a DRAFT GitHub Release
+# with WheelConvert-Setup-<ver>.exe, the portable zip and SHA256SUMS.txt. A person reviews and publishes the draft.
+# On a pull request that touches the packaging files: the same build, but the three files are only uploaded as
+# workflow artifacts. Every step that creates a release is guarded by the tag check, so a PR run cannot release.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    paths:
+      - 'installer/**'
+      - '.github/workflows/release.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+      # Values come from the tag name or the PR number; they are passed to scripts as env vars, never pasted into script text.
+      IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      TAG_NAME: ${{ github.ref_name }}
+      PR_NUMBER: ${{ github.event.number }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-dotnet@v4.3.1
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Work out the version
+        shell: pwsh
+        run: |
+          if ($env:IS_TAG -eq 'true') {
+            $ver = $env:TAG_NAME.Substring(1)
+          } else {
+            $ver = "0.0.0-pr$($env:PR_NUMBER)"
+          }
+          if ($ver -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$') { throw "Version '$ver' is not like 1.2.3 or 1.2.3-rc1." }
+          $numeric = ($ver -replace '-.*$', '') + '.0'
+          "VERSION=$ver" >> $env:GITHUB_ENV
+          "VERSION_NUMERIC=$numeric" >> $env:GITHUB_ENV
+          Write-Host "Version: $ver ($numeric)"
+
+      - name: Restore
+        run: dotnet restore WheelConvert.sln
+
+      - name: Build
+        run: dotnet build WheelConvert.sln -c Release --no-restore
+
+      - name: Core tests
+        run: dotnet run --project tests/WheelConvert.Core.Tests -c Release --no-build
+
+      - name: App tests
+        run: dotnet test tests/WheelConvert.App.Tests -c Release --no-build
+
+      - name: Converter tests
+        shell: pwsh
+        run: |
+          $projects = @(Get-ChildItem -Path tests -Recurse -Filter 'WheelConvert.Converters.*.Tests.csproj')
+          foreach ($p in $projects) {
+            dotnet test $p.FullName -c Release
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      # Same command as build.yml, so the released exe is what CI already tested.
+      - name: Publish app (framework-dependent, single-file managed code, native DLLs beside it)
+        run: dotnet publish src/WheelConvert.App -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false -o publish
+
+      - name: Stage files (exe, native DLLs, licences)
+        shell: pwsh
+        run: |
+          $exe = Get-Item publish/WheelConvert.exe
+          if ($exe.Length -lt 1MB) { throw "publish/WheelConvert.exe is suspiciously small ($($exe.Length) bytes)." }
+          New-Item -ItemType Directory -Force dist/licenses | Out-Null
+          # Every published file except debug symbols: WheelConvert.exe plus the native DLLs that stay beside it
+          # (Magick.Native, libSkiaSharp, pdfium), so the LGPL libraries inside Magick.Native can be replaced (THIRD-PARTY-NOTICES.md).
+          Get-ChildItem publish -File | Where-Object { $_.Extension -ne '.pdb' } | Copy-Item -Destination dist/
+          foreach ($need in 'Magick.Native-Q8-x64.dll', 'libSkiaSharp.dll', 'pdfium.dll') {
+            if (-not (Test-Path "dist/$need")) { throw "Expected native library missing from the publish output: $need" }
+          }
+          Copy-Item LICENSE, THIRD-PARTY-NOTICES.md dist/
+          # PDFium licence texts, copied from the pdfium-binaries chromium/7961 release archive (source and SHA-256 in THIRD-PARTY-NOTICES.md).
+          Copy-Item installer/licenses/pdfium dist/licenses/pdfium -Recurse
+          # The packages' own notice files, for exactly the versions in packages.lock.json (ADR-010).
+          # A missing file fails the build on purpose: it means a package version changed and THIRD-PARTY-NOTICES.md needs a re-check.
+          $pk = Join-Path $env:USERPROFILE '.nuget/packages'
+          $notices = @(
+            @('magick.net-q8-anycpu/15.0.0/Notice.txt',                        'Magick.NET-Q8-AnyCPU-15.0.0-Notice.txt'),
+            @('magick.net.core/15.0.0/Copyright.txt',                          'Magick.NET.Core-15.0.0-Copyright.txt'),
+            @('skiasharp.nativeassets.win32/4.150.1/LICENSE.txt',              'SkiaSharp-4.150.1-LICENSE.txt'),
+            @('skiasharp.nativeassets.win32/4.150.1/THIRD-PARTY-NOTICES.txt',  'SkiaSharp-4.150.1-THIRD-PARTY-NOTICES.txt'),
+            @('microsoft.extensions.dependencyinjection.abstractions/8.0.2/LICENSE.TXT',            'Microsoft.Extensions.DependencyInjection.Abstractions-8.0.2-LICENSE.txt'),
+            @('microsoft.extensions.dependencyinjection.abstractions/8.0.2/THIRD-PARTY-NOTICES.TXT', 'Microsoft.Extensions.DependencyInjection.Abstractions-8.0.2-THIRD-PARTY-NOTICES.txt'),
+            @('microsoft.extensions.logging.abstractions/8.0.3/LICENSE.TXT',                        'Microsoft.Extensions.Logging.Abstractions-8.0.3-LICENSE.txt'),
+            @('microsoft.extensions.logging.abstractions/8.0.3/THIRD-PARTY-NOTICES.TXT',            'Microsoft.Extensions.Logging.Abstractions-8.0.3-THIRD-PARTY-NOTICES.txt'),
+            @('system.security.cryptography.pkcs/8.0.1/LICENSE.TXT',                                'System.Security.Cryptography.Pkcs-8.0.1-LICENSE.txt'),
+            @('system.security.cryptography.pkcs/8.0.1/THIRD-PARTY-NOTICES.TXT',                    'System.Security.Cryptography.Pkcs-8.0.1-THIRD-PARTY-NOTICES.txt')
+          )
+          foreach ($n in $notices) {
+            $src = Join-Path $pk $n[0]
+            if (-not (Test-Path $src)) { throw "Licence file not found: $src" }
+            Copy-Item $src (Join-Path dist/licenses $n[1])
+          }
+          Get-ChildItem dist -Recurse | Select-Object FullName, Length
+
+      - name: Portable zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Compress-Archive -Path dist/* -DestinationPath "out/WheelConvert-$($env:VERSION)-win-x64-portable.zip"
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found at $iscc" }
+          & $iscc "/DAppVersion=$($env:VERSION)" "/DAppVersionNumeric=$($env:VERSION_NUMERIC)" "/DSourceDir=$($PWD.Path)\dist" "/DOutputDir=$($PWD.Path)\out" installer/WheelConvert.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          Set-Location out
+          $lines = Get-ChildItem -File | Where-Object { $_.Name -ne 'SHA256SUMS.txt' } | Sort-Object Name | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          }
+          # LF endings and no BOM, so `sha256sum -c SHA256SUMS.txt` works on Linux, WSL and Git Bash.
+          [IO.File]::WriteAllText((Join-Path (Get-Location) 'SHA256SUMS.txt'), (($lines -join "`n") + "`n"), (New-Object Text.UTF8Encoding($false)))
+          Get-Content SHA256SUMS.txt
+          Get-ChildItem
+
+      - name: Check the three release files exist
+        shell: pwsh
+        run: |
+          $want = @("WheelConvert-Setup-$($env:VERSION).exe", "WheelConvert-$($env:VERSION)-win-x64-portable.zip", 'SHA256SUMS.txt')
+          foreach ($w in $want) { if (-not (Test-Path "out/$w")) { throw "Missing out/$w" } }
+
+      # Runs for tags and for PRs: the PR run proves the whole pipeline without releasing anything.
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: release-files
+          path: out/*
+          if-no-files-found: error
+          retention-days: 14
+
+  draft-release:
+    # Tags only. This is the only job with write access, and it creates a DRAFT (never a published release).
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG_NAME: ${{ github.ref_name }}
+    steps:
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: release-files
+          path: files
+
+      - name: Create draft release
+        run: |
+          ls -l files
+          flags=""
+          case "$TAG_NAME" in *-*) flags="--prerelease" ;; esac
+          gh release create "$TAG_NAME" files/* --draft $flags --title "WheelConvert $TAG_NAME" \
+            --notes "Unsigned build. Verify the download against SHA256SUMS.txt. Needs the .NET 8 Desktop Runtime (x64). Audio and video conversion needs FFmpeg (winget install Gyan.FFmpeg). See CHANGELOG.md."

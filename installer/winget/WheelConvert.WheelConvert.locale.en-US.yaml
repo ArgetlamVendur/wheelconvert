@@ -1,0 +1,11 @@
+# DRAFT locale manifest. Not submitted. Every PLACEHOLDER must be replaced first.
+PackageIdentifier: PLACEHOLDER.WheelConvert
+PackageVersion: 0.0.0-PLACEHOLDER
+PackageLocale: en-US
+Publisher: PLACEHOLDER
+PackageName: WheelConvert
+License: MIT
+ShortDescription: Shift-drag a file in Explorer, drop it on a wheel segment, get the converted copy next to it.
+PackageUrl: https://github.com/PLACEHOLDER/wheelconvert
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

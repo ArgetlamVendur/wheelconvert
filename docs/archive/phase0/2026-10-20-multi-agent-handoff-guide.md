@@ -30,10 +30,10 @@ gh auth login
 Choose: **GitHub.com → HTTPS → Yes (authenticate Git) → Login with a web browser**. Paste the code it shows into the browser.
 
 ### A4. Unzip and create the repo
-1. The repo sits at `D:\Claude Base\Cowork Playground\APPS\wheelconvert`. Make sure that folder is not synced by OneDrive or Google Drive — syncing fights with Git. The path contains spaces, so always wrap it in quotes in PowerShell.
+1. The repo sits at `<repo>`. Make sure that folder is not synced by OneDrive or Google Drive — syncing fights with Git. The path contains spaces, so always wrap it in quotes in PowerShell.
 2. In PowerShell:
 ```powershell
-cd "D:\Claude Base\Cowork Playground\APPS\wheelconvert"
+cd "<repo>"
 git init
 git add .
 git commit -m "chore: initial scaffold with agent rules and Phase 0 tasks"
@@ -94,8 +94,8 @@ Append a new BUILD entry listing each finding and how it was fixed. Push. Stop.
 ```
 
 ### Where to open each tool
-- **Claude Code:** in PowerShell, `cd "D:\Claude Base\Cowork Playground\APPS\wheelconvert"` then `claude`. It reads `CLAUDE.md` → `AGENTS.md` automatically.
-- **Antigravity:** File → Open Folder → `D:\Claude Base\Cowork Playground\APPS\wheelconvert`. It reads `AGENTS.md` automatically. **Do not let it create `GEMINI.md`.**
+- **Claude Code:** in PowerShell, `cd "<repo>"` then `claude`. It reads `CLAUDE.md` → `AGENTS.md` automatically.
+- **Antigravity:** File → Open Folder → `<repo>`. It reads `AGENTS.md` automatically. **Do not let it create `GEMINI.md`.**
 
 ---
 

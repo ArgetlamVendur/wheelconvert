@@ -11,7 +11,7 @@ The agents read `AGENTS.md`. This page is for you.
 1. Open `docs/STATUS.md`, pick the next `TODO` WP (suggested order is in `docs/modules/README.md`).
 2. Open Claude Code in the WP's folder, pick the builder model named in STATUS.md (`/model opus`) and paste the WP's **Start prompt**.
 3. Agent restates the plan → you say "go" → it builds, runs its checks, opens a PR.
-4. Run the "User" tests in the WP table yourself (scratch files only, `D:\Claude Base\Cowork Playground\APPS\wc-test\`).
+4. Run the "User" tests in the WP table yourself (scratch files only, `<wc-test>\`).
 5. Open a **fresh** Claude Code session with the reviewer model (`/model fable`) and paste:
    ```
    Read AGENTS.md and docs/checklists/review.md. Review the PR for WP-NN against docs/modules/WP-NN-*.md.

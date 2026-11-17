@@ -74,8 +74,8 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
-      - name: Publish app (framework-dependent, single file)
-        run: dotnet publish src/WheelConvert.App -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+      - name: Publish app (framework-dependent, single-file managed code, native DLLs beside it)
+        run: dotnet publish src/WheelConvert.App -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false -o publish
 
       - uses: actions/upload-artifact@v4
         with:

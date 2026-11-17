@@ -1,0 +1,17 @@
+# DRAFT installer manifest. Not submitted. Every PLACEHOLDER must be replaced first.
+PackageIdentifier: PLACEHOLDER.WheelConvert
+PackageVersion: 0.0.0-PLACEHOLDER
+InstallerType: inno
+Scope: user
+InstallModes:
+  - interactive
+  - silent
+Dependencies:
+  PackageDependencies:
+    - PackageIdentifier: Microsoft.DotNet.DesktopRuntime.8
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/PLACEHOLDER/wheelconvert/releases/download/vPLACEHOLDER/WheelConvert-Setup-PLACEHOLDER.exe
+    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000 # PLACEHOLDER, copy from SHA256SUMS.txt
+ManifestType: installer
+ManifestVersion: 1.6.0

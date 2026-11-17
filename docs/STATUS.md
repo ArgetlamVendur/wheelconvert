@@ -15,7 +15,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 09 | PDF reorder window | DONE | Sonnet | Opus (Fable first review) | PR #16 | Merged. Re-review APPROVE (docs/reviews/WP-09-2026-11-13.md); 27 PageOrderTests (6 STA window tests). User tests passed at Checkpoint 2 (2026-11-17) |
 | 10 | QR reader | SHELVED (user, 2026-11-17) | Sonnet | — | wp-10-qr (draft PR #17) | Built at 0fc6443, not reviewed; QR stub stays on main so no QR segment shows |
 | 11 | Integration | DONE | Claude Code (Opus) | Antigravity | PR #2 (b234417) | Merged |
-| 12 | Packaging + release | TODO | Sonnet | Opus | | Includes Defender go/no-go |
+| 12 | Packaging + release | DONE | Sonnet | Opus | PR #19 | Merged. Reviews: docs/reviews/WP-12-2026-11-17.md (APPROVE after 2 fix rounds). Checkpoint 3 user tests PASS 2026-11-17 (Defender clean, VirusTotal skipped); GO recorded by user. Tag push v0.1.0-rc1 is the user's step |
 
 From 2026-11-10 only Claude models are used: the reviewer must be a different model from the builder, in a fresh session (AGENTS.md §2). From 2026-11-12 the remaining work runs as an orchestrated run (AGENTS.md §9).
 From 2026-11-17 Opus replaces Fable as orchestrator and reviewer.
@@ -24,7 +24,7 @@ From 2026-11-17 Opus replaces Fable as orchestrator and reviewer.
 - Shift-drag hook vs. antivirus: unknown until WP-12's go/no-go.
 
 ## Open questions for the user
-- Copyright holder name for `LICENSE` (WP-12).
-- Make the GitHub repo public now or at the first release?
 - Default trigger mode: Shift-drag (current; hotkey off unless the hook fails) or Both? WP-05's tray menu lets you switch either way.
 - Strip GPS location from converted photos (WP-06 follow-up)? On by default?
+- Licence: get professional advice on the LGPL/MPL libraries inside Magick.Native (now shipped as a separate DLL next to the exe).
+- Licence: are SkiaSharp's libmicrohttpd and gif compiled into the Windows libSkiaSharp.dll? (ask the SkiaSharp maintainers)

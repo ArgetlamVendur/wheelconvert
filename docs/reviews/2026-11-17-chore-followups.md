@@ -53,7 +53,7 @@ None.
 - **O6** `src/WheelConvert.Converters.Image/ImageConverter.cs:302`: the WebP limit is orientation-independent (same limit on both sides), so it could be checked from the header (`info.Width/Height`) before decoding, saving memory on huge images. Current placement meets the brief ("before encoding").
 
 ## What the user must try by hand (NEEDS USER)
-1. In a scratch folder (e.g. `D:\Claude Base\Cowork Playground\APPS\wc-test\`), make a copy of a photo and rename it `a,b.png`. Convert it with the wheel (e.g. to JPG). Click the "done" notification: Explorer should open that folder with the new file selected.
+1. In a scratch folder (e.g. `<wc-test>\`), make a copy of a photo and rename it `a,b.png`. Convert it with the wheel (e.g. to JPG). Click the "done" notification: Explorer should open that folder with the new file selected.
 2. Repeat with a file named `-x, y.png`: same result, Explorer opens the right folder, nothing else happens.
 3. Convert a file, delete the output before clicking the notification, then click it: nothing should open; `%LOCALAPPDATA%\WheelConvert\wheelconvert.log` should contain "Reveal skipped".
 4. Tray menu → open log / open settings: they still open.

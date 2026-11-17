@@ -1,0 +1,6 @@
+# DRAFT version manifest. Not submitted. See README.md in this folder.
+PackageIdentifier: PLACEHOLDER.WheelConvert
+PackageVersion: 0.0.0-PLACEHOLDER
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0
