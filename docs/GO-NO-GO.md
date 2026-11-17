@@ -1,6 +1,6 @@
 # Go / no-go: antivirus and signing (WP-12)
 
-Status: **TEMPLATE. Nothing on this page has been scanned yet.** The results table is empty on purpose; the user fills it in. This page answers ADR-006: "does the Shift-drag mouse hook get flagged?"
+Status: **Checkpoint 3 results recorded 2026-11-17** (section 3 and the section after it). Microsoft Defender: clean. VirusTotal: skipped by the user. This page answers ADR-006: "does the Shift-drag mouse hook get flagged?"
 
 ## 1. What to scan
 The file that real users run: the installed `WheelConvert.exe`.
@@ -16,15 +16,40 @@ Check first that the SHA-256 of the files matches `SHA256SUMS.txt` from the rele
 - **VirusTotal (only if you decide to).** Uploading shares the file with third parties and makes the hash public. Agents must not do this. If you choose to, upload the installer or exe yourself at virustotal.com and record the detection count. Looking up only the SHA-256 (no upload) is the lower-exposure option.
 - Record every detection with the engine name and the detection name. One or two generic "heuristic" hits from small engines are common for unsigned apps; note them but do not treat them as a block.
 
-## 3. Results (to be filled in by the user)
+## 3. Results (filled in from the user's report, 2026-11-17)
 
 | Date | File (name + SHA-256 first 12 chars) | Tool | Result (clean / detections) | Engine and detection names | Hook flagged? (yes / no / unclear) | Notes |
 |---|---|---|---|---|---|---|
-| | | | | | | |
-| | | | | | | |
-| | | | | | | |
+| 2026-11-17 | `WheelConvert-Setup-0.0.0-pr19.exe` (hash matched `SHA256SUMS.txt`; first 12 chars not reported) | Microsoft Defender (right-click scan) | clean, no threats found | none | no | Unsigned build. No SmartScreen or Defender pop-up during install or start |
+| 2026-11-17 | Installed `WheelConvert.exe` and the DLLs (`Magick.Native-Q8-x64.dll`, `libSkiaSharp.dll`, `pdfium.dll`) | Microsoft Defender (right-click scan) | clean, no threats found | none | no | Installed app, no pop-ups in the first minutes of use |
+| 2026-11-17 | Setup exe, portable zip, installed exe | VirusTotal | SKIPPED (user choice, nothing uploaded) | n/a | unclear (not checked) | Not checked by choice |
 
-Decision: **GO** / **NO-GO** (user): ________  Date: ________
+Decision: **GO** (default Shift-drag trigger kept, no change needed; VirusTotal not checked)  Date: 2026-11-17  (recorded from the user's report; the user confirms it by merging the PR)
+
+## Checkpoint 3 results (2026-11-17)
+- **Build tested:** CI artifact `release-files` from run 44082534934 (commit 4b62c62), version `0.0.0-pr19`, unsigned.
+- **Tester:** the user, on a separate Windows user account, with the installed app.
+- **Microsoft Defender:** scan of the Setup exe found no threats. Scan of the installed exe and DLLs found no threats. No SmartScreen or Defender pop-ups during install or start.
+- **VirusTotal:** skipped by user choice (nothing uploaded).
+- **Hand-test rows 1-14: PASS** (row numbers from the list in `docs/reviews/WP-12-2026-11-17.md`, "Re-review (2ad51fc)"):
+  1. Checksums match `SHA256SUMS.txt`
+  2. Defender scan of the Setup exe
+  3. Install without an admin prompt and without a runtime message
+  4. Install folder contents: native DLLs, `LICENSE`, `THIRD-PARTY-NOTICES`, `licenses`
+  5. Tray Status shows Images and PDF tools available
+  6. PNG to JPG and PNG to ICO
+  7. PDF Rotate and PDF to Images
+  8. Audio/video without FFmpeg shows the install-FFmpeg message, no crash
+  9. Upgrade while running asks to close the app (AppMutex)
+  10. Uninstall while running asks to close, then "delete settings?" with default No
+  11. Uninstall cleanup keeps the data folder
+  12. Uninstall with Yes removes the data folder
+  13. Start with Windows works after sign-in
+  14. Defender scan of the installed files
+- **Row 15, VirusTotal:** SKIPPED (user choice).
+- **Row 16, PC without .NET 8:** NOT DONE (optional).
+- **Row 17, tag push `v0.1.0-rc1` and draft prerelease:** PENDING. This is the user's step after merge.
+- **Conclusion (ADR-006 rule, section 4):** Defender found nothing, so the hook was not flagged and no change to the default trigger is needed. Shift-drag stays the default. This rests on Defender only; VirusTotal was not checked.
 
 ## 4. The ADR-006 rule
 If the Shift-drag hook is flagged (Defender quarantines or blocks the app, or several mainstream engines name the mouse hook or keylogger behaviour), the agent proposes switching the **default trigger to Hotkey** through a **new ADR** that supersedes ADR-006's default. The user decides. The Shift-drag trigger stays available as a setting. Nothing is changed in code before that ADR is accepted.
@@ -50,4 +75,4 @@ Sources, read 2026-11-17: <https://learn.microsoft.com/en-us/azure/artifact-sign
 A commercial code-signing certificate from a certificate authority that serves India, or signing through a legal entity in a supported country. Not evaluated.
 
 ## 6. Not done by agents
-No file has been uploaded to VirusTotal or any other service, no installer has been run, and no Defender scan has been performed by the agent that wrote this page.
+No agent uploaded a file to VirusTotal or any other service, ran an installer, or ran a Defender scan. The results above are the user's own, reported on 2026-11-17.
