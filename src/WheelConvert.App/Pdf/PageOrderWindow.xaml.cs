@@ -22,7 +22,7 @@ public partial class PageOrderWindow : Window
     private readonly string _pdfPath;
     private readonly CancellationToken _token;
     private Point _pressPoint;
-    private int _dragIndex = -1;
+    private PageItem? _dragItem;
     private bool _dragging;
 
     public PageOrderWindow(PageOrderViewModel viewModel, IPdfPageRenderer renderer, ILog log, string pdfPath)
@@ -36,7 +36,12 @@ public partial class PageOrderWindow : Window
         Title = $"Reorder pages — {Path.GetFileName(pdfPath)}";
         PageList.ItemsSource = _viewModel.Pages;
         _viewModel.Pages.CollectionChanged += (_, _) => SaveButton.IsEnabled = _viewModel.CanSave;
-        Loaded += (_, _) => _ = LoadThumbnailsAsync();
+        Loaded += (_, _) =>
+        {
+            // The drop comes from Explorer; without this the window can open behind it.
+            Activate();
+            _ = LoadThumbnailsAsync();
+        };
         // Held only by the Closed handler so the window itself owns nothing disposable.
         var cts = new CancellationTokenSource();
         _token = cts.Token;
@@ -53,22 +58,32 @@ public partial class PageOrderWindow : Window
         try
         {
             // One page at a time keeps memory and CPU modest. Rendering runs off the UI thread; decoding is
-            // frozen and assigned back here on the UI thread.
-            foreach (var item in _viewModel.Pages.ToList())
+            // frozen and assigned back here on the UI thread. Walks every page, not only those currently listed,
+            // so a page the user removed (and may bring back with Reset) still gets its thumbnail.
+            foreach (var item in _viewModel.AllItems)
             {
                 token.ThrowIfCancellationRequested();
-                var png = await Task.Run(() => _renderer.RenderPagePngAsync(_pdfPath, item.PageNumber - 1, ThumbnailPixels, token), token)
-                    .ConfigureAwait(true);
-                item.Thumbnail = Decode(png);
+                try
+                {
+                    var png = await Task.Run(() => _renderer.RenderPagePngAsync(_pdfPath, item.PageNumber - 1, ThumbnailPixels, token), token)
+                        .ConfigureAwait(true);
+                    item.Thumbnail = Decode(png);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    // One bad page must not stop the others.
+                    _log.Warn($"Thumbnail for page {item.PageNumber} failed; showing a placeholder.", ex);
+                    item.PreviewFailed = true;
+                }
             }
         }
         catch (OperationCanceledException)
         {
             // Window closed while loading.
-        }
-        catch (Exception ex)
-        {
-            _log.Warn("Thumbnail rendering failed; remaining pages show a placeholder.", ex);
         }
     }
 
@@ -88,6 +103,12 @@ public partial class PageOrderWindow : Window
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
+        // A page being held must not change under the drag; the drag ends on mouse-up.
+        if (_dragItem is not null)
+        {
+            return;
+        }
+
         var index = SelectedIndex;
         if (index < 0)
         {
@@ -137,20 +158,28 @@ public partial class PageOrderWindow : Window
             return; // Let the remove button handle its own click.
         }
 
-        _dragIndex = IndexAt(e.GetPosition(PageList));
-        if (_dragIndex >= 0)
+        var index = IndexAt(e.GetPosition(PageList));
+        _dragItem = index >= 0 ? _viewModel.Pages[index] : null;
+        if (_dragItem is not null)
         {
             _pressPoint = e.GetPosition(PageList);
             _dragging = false;
-            PageList.SelectedIndex = _dragIndex;
+            PageList.SelectedItem = _dragItem;
             PageList.CaptureMouse();
         }
     }
 
     private void OnListMouseMove(object sender, MouseEventArgs e)
     {
-        if (_dragIndex < 0 || !PageList.IsMouseCaptured || e.LeftButton != MouseButtonState.Pressed)
+        if (_dragItem is null || !PageList.IsMouseCaptured)
         {
+            return;
+        }
+
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            // The mouse-up was missed; let go so the next click is not swallowed.
+            PageList.ReleaseMouseCapture();
             return;
         }
 
@@ -167,12 +196,16 @@ public partial class PageOrderWindow : Window
         }
 
         var target = IndexAt(position);
-        if (target >= 0 && target != _dragIndex)
+        if (target >= 0 && _viewModel.Pages.IndexOf(_dragItem) != target)
         {
-            var item = _viewModel.Pages[_dragIndex];
-            _viewModel.Move(_dragIndex, target);
-            _dragIndex = target;
-            PageList.SelectedItem = item;
+            if (_viewModel.MoveItem(_dragItem, target))
+            {
+                PageList.SelectedItem = _dragItem;
+            }
+            else
+            {
+                PageList.ReleaseMouseCapture(); // The held page is no longer in the list: end the drag.
+            }
         }
     }
 
@@ -186,7 +219,7 @@ public partial class PageOrderWindow : Window
 
     private void OnListLostCapture(object sender, MouseEventArgs e)
     {
-        _dragIndex = -1;
+        _dragItem = null;
         _dragging = false;
     }
 

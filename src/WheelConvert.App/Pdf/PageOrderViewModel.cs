@@ -8,6 +8,7 @@ namespace WheelConvert.App.Pdf;
 public sealed class PageItem(int pageNumber) : INotifyPropertyChanged
 {
     private ImageSource? _thumbnail;
+    private bool _previewFailed;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -23,22 +24,39 @@ public sealed class PageItem(int pageNumber) : INotifyPropertyChanged
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Thumbnail)));
         }
     }
+
+    /// <summary>True when rendering this page failed; the placeholder then reads "No preview" instead of "Loading…".</summary>
+    public bool PreviewFailed
+    {
+        get => _previewFailed;
+        set
+        {
+            _previewFailed = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PreviewFailed)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Placeholder)));
+        }
+    }
+
+    public string Placeholder => _previewFailed ? "No preview" : "Loading…";
 }
 
 /// <summary>Pure list logic for the reorder window: no I/O, no rendering. All indices are 0-based positions in the current list.</summary>
 public sealed class PageOrderViewModel
 {
-    private readonly int _pageCount;
+    private readonly PageItem[] _allItems;
 
     public PageOrderViewModel(int pageCount)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageCount);
-        _pageCount = pageCount;
+        _allItems = [.. Enumerable.Range(1, pageCount).Select(n => new PageItem(n))];
         Pages = [];
         Reset();
     }
 
     public ObservableCollection<PageItem> Pages { get; }
+
+    /// <summary>Every page of the PDF in source order, including removed ones. Created once, so thumbnails survive Remove and Reset.</summary>
+    public IReadOnlyList<PageItem> AllItems => _allItems;
 
     /// <summary>True once <see cref="Accept"/> succeeded; closing or cancelling leaves it false.</summary>
     public bool Accepted { get; private set; }
@@ -67,6 +85,13 @@ public sealed class PageOrderViewModel
         return true;
     }
 
+    /// <summary>Moves a specific page tile; false (no change) if it is no longer in the list or the target is out of range.</summary>
+    public bool MoveItem(PageItem item, int to)
+    {
+        var from = Pages.IndexOf(item);
+        return from >= 0 && Move(from, to);
+    }
+
     public bool Remove(int index)
     {
         if (index < 0 || index >= Pages.Count)
@@ -87,14 +112,13 @@ public sealed class PageOrderViewModel
         }
     }
 
-    /// <summary>Restores all pages in original order (also brings back removed pages). Keeps already-loaded thumbnails.</summary>
+    /// <summary>Restores all pages in original order (also brings back removed pages). The same <see cref="PageItem"/> instances return, so loaded thumbnails are kept.</summary>
     public void Reset()
     {
-        var existing = Pages.ToDictionary(p => p.PageNumber);
         Pages.Clear();
-        for (var n = 1; n <= _pageCount; n++)
+        foreach (var item in _allItems)
         {
-            Pages.Add(existing.TryGetValue(n, out var item) ? item : new PageItem(n));
+            Pages.Add(item);
         }
     }
 

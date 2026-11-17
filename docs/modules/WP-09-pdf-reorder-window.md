@@ -23,7 +23,7 @@ When the user drops a PDF on "Reorder", show a window of page thumbnails they ca
 | # | Who | Steps | Expected | Result |
 |---|---|---|---|---|
 | 1 | Agent | Build App | 0 warnings | PASS (Release build 0 warnings, 0 errors) |
-| 2 | Agent | View-model operations (small test or documented manual check) | Correct `Result` | PASS (20 xUnit tests in `PageOrderTests`) |
+| 2 | Agent | View-model operations (small test or documented manual check) | Correct `Result` | PASS (27 xUnit tests in `PageOrderTests`, incl. 6 STA window tests) |
 | 3 | User | Drop a 5-page PDF on Reorder | Window with 5 thumbnails | NEEDS USER |
 | 4 | User | Drag page 5 to the front, remove page 2, Save | `doc (reordered).pdf` = 5,1,3,4 | NEEDS USER |
 | 5 | User | Cancel | No output | NEEDS USER |
