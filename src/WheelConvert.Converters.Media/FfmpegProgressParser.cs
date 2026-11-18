@@ -45,7 +45,16 @@ public sealed class FfmpegProgressParser
         return null;
     }
 
-    /// <summary>True for <c>key=value</c> progress lines (<c>frame=</c>, <c>out_time_us=</c>, <c>progress=end</c>…).</summary>
+    private static readonly HashSet<string> ProgressKeys = new(StringComparer.Ordinal)
+    {
+        "frame", "fps", "bitrate", "total_size", "out_time_us", "out_time_ms", "out_time",
+        "dup_frames", "drop_frames", "speed", "progress",
+    };
+
+    /// <summary>
+    /// True only for FFmpeg's known <c>-progress</c> keys (<c>frame=</c>, <c>stream_0_0_q=</c>, <c>out_time_us=</c>, <c>progress=end</c>…).
+    /// Any other <c>key=value</c> line can be real error text and is not progress (review note N7).
+    /// </summary>
     public static bool IsProgressLine(string? line)
     {
         if (string.IsNullOrEmpty(line))
@@ -59,17 +68,14 @@ public sealed class FfmpegProgressParser
             return false;
         }
 
-        for (var i = 0; i < eq; i++)
-        {
-            var c = line[i];
-            if (!(char.IsAsciiLetterOrDigit(c) || c == '_'))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        var key = line[..eq];
+        return ProgressKeys.Contains(key) || IsStreamQualityKey(key);
     }
+
+    // stream_<n>_<n>_q, e.g. stream_0_0_q.
+    private static bool IsStreamQualityKey(string key) =>
+        key.Length > 8 && key.StartsWith("stream_", StringComparison.Ordinal) && key.EndsWith("_q", StringComparison.Ordinal)
+        && key[7..^2].All(c => char.IsAsciiDigit(c) || c == '_');
 
     /// <summary>Parses " 00:01:02.50, start: …" → microseconds; null for "N/A", zero or anything unexpected.</summary>
     private static long? ParseDurationUs(ReadOnlySpan<char> rest)

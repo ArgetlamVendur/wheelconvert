@@ -13,13 +13,15 @@ public sealed class ImageConverterTests : IDisposable
     private readonly string _testDir;
     private readonly SafeOutputWriter _writer;
     private readonly ImageConverter _converter;
+    private readonly ListLog _log;
 
     public ImageConverterTests()
     {
         _testDir = Path.Combine(Path.GetTempPath(), "wc-img-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_testDir);
         _writer = new SafeOutputWriter();
-        _converter = new ImageConverter();
+        _log = new ListLog();
+        _converter = new ImageConverter(_log);
     }
 
     public void Dispose()
@@ -387,6 +389,39 @@ public sealed class ImageConverterTests : IDisposable
         Assert.Equal(60u, outImg.Width);
         Assert.Equal(120u, outImg.Height);
         Assert.True(outImg.Orientation is Orientation.TopLeft or Orientation.Undefined);
+    }
+
+    [Fact]
+    public async Task ConvertAsync_CorruptPng_LogsExceptionTypeAndMessageWithoutFullPathOrStackTrace()
+    {
+        // WP-21 acceptance test 8 (ADR-013).
+        var sourcePath = Path.Combine(_testDir, "broken image.png");
+        await File.WriteAllBytesAsync(sourcePath, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52]);
+
+        var result = await _converter.ConvertAsync(ConversionRequest.Create(sourcePath, TargetCatalog.ImageJpg), _writer, null, CancellationToken.None);
+
+        Assert.False(result.Success);
+        var line = Assert.Single(_log.Lines);
+        Assert.Contains("Exception", line, StringComparison.Ordinal);
+        Assert.Contains("broken image.png", line, StringComparison.Ordinal);
+        Assert.DoesNotContain(_testDir, line, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("   at ", line, StringComparison.Ordinal);
+        Assert.True(line.Length <= 500);
+    }
+
+    [Fact]
+    public async Task ConvertAsync_Success_LogsNothing()
+    {
+        var sourcePath = Path.Combine(_testDir, "ok.png");
+        using (var img = new MagickImage(MagickColors.Red, 4, 4))
+        {
+            img.Write(sourcePath, MagickFormat.Png);
+        }
+
+        var result = await _converter.ConvertAsync(ConversionRequest.Create(sourcePath, TargetCatalog.ImageJpg), _writer, null, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Empty(_log.Lines);
     }
 
     [Fact]
@@ -841,4 +876,15 @@ public sealed class ImageConverterTests : IDisposable
             return true;
         }
     }
+}
+
+internal sealed class ListLog : ILog
+{
+    public List<string> Lines { get; } = [];
+
+    public void Info(string message) => Lines.Add(message);
+
+    public void Warn(string message, Exception? exception = null) => Lines.Add(message);
+
+    public void Error(string message, Exception? exception = null) => Lines.Add(message);
 }

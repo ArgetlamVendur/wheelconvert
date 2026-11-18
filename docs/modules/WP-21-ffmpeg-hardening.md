@@ -33,14 +33,14 @@ WheelConvert hands files from anywhere (downloads, email attachments) to FFmpeg.
 ## Acceptance tests
 | # | Who | Test | Expected | Result |
 |---|---|---|---|---|
-| 1 | Agent | Argument list for every target | Contains `-protocol_whitelist file`, `-format_whitelist <list>`, `-i file:<abs path>` in that order | |
-| 2 | Agent (real FFmpeg) | An HLS playlist (`.m3u8` text pointing at a local test file) renamed to `clip.mp4` | Fails, `CorruptInput`; the referenced file is never read (check FFmpeg's stderr) | |
-| 3 | Agent (real FFmpeg) | An `ffconcat` text file renamed to `clip.avi` | Fails, `CorruptInput` | |
-| 4 | Agent (real FFmpeg) | All WP-07 sample conversions | Still pass | |
-| 5 | Agent (real FFmpeg) | Input `D:\…\टेस्ट ଓଡ଼ିଆ clip.mp4` (space + Hindi + Odia) | Converts | |
-| 6 | Agent | `IsProgressLine("error=foo")`, `IsProgressLine("speed=1.2x")` | false, true | |
-| 7 | Agent | Failed FFmpeg run (fake runner, 50 stderr lines incl. progress) | Log gets 20 non-progress lines, file names only, no full paths | |
-| 8 | Agent | Failed Magick conversion (corrupt PNG) | Log line with exception type + message, no stack trace, no full path | |
+| 1 | Agent | Argument list for every target | Contains `-protocol_whitelist file`, `-format_whitelist <list>`, `-i file:<abs path>` in that order | PASS |
+| 2 | Agent (real FFmpeg) | An HLS playlist (`.m3u8` text pointing at a local test file) renamed to `clip.mp4` | Fails, `CorruptInput`; the referenced file is never read (check FFmpeg's stderr) | PASS |
+| 3 | Agent (real FFmpeg) | An `ffconcat` text file renamed to `clip.avi` | Fails, `CorruptInput` | PASS |
+| 4 | Agent (real FFmpeg) | All WP-07 sample conversions | Still pass | PASS |
+| 5 | Agent (real FFmpeg) | Input `D:\…\टेस्ट ଓଡ଼ିଆ clip.mp4` (space + Hindi + Odia) | Converts | PASS |
+| 6 | Agent | `IsProgressLine("error=foo")`, `IsProgressLine("speed=1.2x")` | false, true | PASS |
+| 7 | Agent | Failed FFmpeg run (fake runner, 50 stderr lines incl. progress) | Log gets 20 non-progress lines, file names only, no full paths | PASS |
+| 8 | Agent | Failed Magick conversion (corrupt PNG) | Log line with exception type + message, no stack trace, no full path | PASS |
 | 9 | User | Convert a phone video and an MP3 from `wc-test` | Same results as before | NEEDS USER |
 
 ## Review focus

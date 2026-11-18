@@ -3,6 +3,7 @@ using ImageMagick;
 using ImageMagick.Configuration;
 using WheelConvert.Core.Contracts;
 using WheelConvert.Core.Formats;
+using WheelConvert.Core.Infrastructure;
 
 namespace WheelConvert.Converters.Image;
 
@@ -13,7 +14,7 @@ namespace WheelConvert.Converters.Image;
 public sealed class ImageConverter : IConverter
 {
     // Shown to the user when the native library, the security policy or the limits could not be set up.
-    // The exception detail is not kept: the frozen parameterless constructor gives this class no ILog.
+    // Library setup failures are reported through CheckHealth; conversion failures are logged (ADR-013).
     private const string LibraryFailedMessage = "Image library failed to load.";
 
     private static readonly bool IsSecurityInitialized;
@@ -42,6 +43,20 @@ public sealed class ImageConverter : IConverter
         [".ico"] = MagickFormat.Ico,
         [".avif"] = MagickFormat.Avif,
     };
+
+    private readonly ILog _log;
+
+    /// <summary>Failures are logged to the default log file (ADR-013); the frozen parameterless constructor has no ILog.</summary>
+    public ImageConverter()
+        : this(new FileLog(FileLog.DefaultPath))
+    {
+    }
+
+    /// <summary>Same, with an explicit log (tests).</summary>
+    public ImageConverter(ILog log)
+    {
+        _log = log ?? throw new ArgumentNullException(nameof(log));
+    }
 
     static ImageConverter()
     {
@@ -175,12 +190,14 @@ public sealed class ImageConverter : IConverter
                 ? ConversionResult.Fail(ConversionError.CorruptInput, "Couldn't read the source file. It may be open in another app.")
                 : ConversionResult.Fail(ConversionError.SourceMissing, "The source file was not found.");
         }
-        catch (MagickCorruptImageErrorException)
+        catch (MagickCorruptImageErrorException ex)
         {
+            LogFailure(ex, request, temp);
             return ConversionResult.Fail(ConversionError.CorruptInput, "The image file is damaged or unreadable.");
         }
-        catch (MagickMissingDelegateErrorException)
+        catch (MagickMissingDelegateErrorException ex)
         {
+            LogFailure(ex, request, temp);
             return ConversionResult.Fail(ConversionError.Unsupported, "Image format or variant is not supported.");
         }
         catch (WebpTooLargeException)
@@ -189,14 +206,17 @@ public sealed class ImageConverter : IConverter
         }
         catch (Exception ex) when (ex is ImageTooLargeException or MagickResourceLimitErrorException or MagickCacheErrorException)
         {
+            LogFailure(ex, request, temp);
             return ConversionResult.Fail(ConversionError.Unsupported, "Image is too large.");
         }
-        catch (MagickPolicyErrorException)
+        catch (MagickPolicyErrorException ex)
         {
+            LogFailure(ex, request, temp);
             return ConversionResult.Fail(ConversionError.CorruptInput, "Image format is restricted or unsupported.");
         }
-        catch (MagickException)
+        catch (MagickException ex)
         {
+            LogFailure(ex, request, temp);
             return ConversionResult.Fail(ConversionError.CorruptInput, "Failed to decode or process image.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or FileNotFoundException or DirectoryNotFoundException)
@@ -205,8 +225,9 @@ public sealed class ImageConverter : IConverter
             // into SourceReadException in ReadSource and handled above, so they cannot land here.
             return ConversionResult.Fail(ConversionError.OutputFailed, "Couldn't save the converted file here.");
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            LogFailure(ex, request, temp);
             return ConversionResult.Fail(ConversionError.Unknown, "Something went wrong while converting the image.");
         }
         finally
@@ -215,6 +236,31 @@ public sealed class ImageConverter : IConverter
             {
                 output.Discard(temp);
             }
+        }
+    }
+
+    /// <summary>
+    /// ADR-013: logs the exception type and message (no stack trace), cut to 500 characters, with the source and temp paths
+    /// reduced to file names. Failures only; never shown to the user.
+    /// </summary>
+    private void LogFailure(Exception ex, ConversionRequest request, string? temp)
+    {
+        try
+        {
+            var message = ex.Message;
+            foreach (var path in new[] { request.SourcePath, temp ?? string.Empty }.Where(p => p.Length > 0).Select(Path.GetFullPath).OrderByDescending(p => p.Length))
+            {
+                var name = Path.GetFileName(path);
+                message = message.Replace(path, name, StringComparison.OrdinalIgnoreCase)
+                    .Replace(path.Replace(Path.DirectorySeparatorChar, '/'), name, StringComparison.OrdinalIgnoreCase);
+            }
+
+            var text = $"Image conversion failed for {Path.GetFileName(request.SourcePath)}: {ex.GetType().Name}: {message}";
+            _log.Warn(text.Length <= 500 ? text : text[..500]);
+        }
+        catch (Exception logEx) when (logEx is not OutOfMemoryException)
+        {
+            // Logging must never change the conversion result.
         }
     }
 

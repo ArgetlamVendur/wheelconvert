@@ -10,7 +10,8 @@ public sealed class FfmpegArgumentsTests
     private static readonly string Output = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "in dir", ".~wc-0123.mp4"));
 
     private static readonly string[] Prefix =
-        ["-hide_banner", "-nostdin", "-loglevel", "info", "-nostats", "-progress", "pipe:2", "-n", "-i"];
+        ["-hide_banner", "-nostdin", "-loglevel", "info", "-nostats", "-progress", "pipe:2", "-n",
+         "-protocol_whitelist", "file", "-format_whitelist", FfmpegArguments.InputFormatWhitelist, "-i"];
 
     public static TheoryData<string, string[]> Expected => new()
     {
@@ -36,12 +37,12 @@ public sealed class FfmpegArgumentsTests
     [MemberData(nameof(Expected))]
     public void Builds_exact_list(string targetId, string[] codec)
     {
-        var expected = Prefix.Append(Input).Concat(codec).Append(Output).ToArray();
+        var expected = Prefix.Append("file:" + Input).Concat(codec).Append(Output).ToArray();
 
         var actual = FfmpegArguments.For(targetId, Input, Output);
 
         Assert.Equal(expected, actual);
-        Assert.Single(actual, a => a == Input);
+        Assert.Single(actual, a => a == "file:" + Input);
         Assert.Equal(Output, actual[^1]);
     }
 
@@ -71,10 +72,25 @@ public sealed class FfmpegArgumentsTests
 
         Assert.DoesNotContain("-x.wav", args);
         var input = args[args.ToList().IndexOf("-i") + 1];
-        Assert.Equal(Path.GetFullPath("-x.wav"), input);
-        Assert.True(Path.IsPathFullyQualified(input));
+        Assert.Equal("file:" + Path.GetFullPath("-x.wav"), input);
+        Assert.True(Path.IsPathFullyQualified(input["file:".Length..]));
         Assert.False(input.StartsWith('-'));
         Assert.True(Path.IsPathFullyQualified(args[^1]));
+    }
+
+    [Fact]
+    public void Whitelists_come_before_input_and_exclude_playlist_demuxers()
+    {
+        var args = FfmpegArguments.For("audio.mp3", Input, Output).ToList();
+        var protocol = args.IndexOf("-protocol_whitelist");
+        var format = args.IndexOf("-format_whitelist");
+        var input = args.IndexOf("-i");
+
+        Assert.True(protocol >= 0 && protocol < format && format < input);
+        Assert.Equal("file", args[protocol + 1]);
+
+        var demuxers = args[format + 1].Split(',');
+        Assert.All(new[] { "hls", "concat", "ffconcat", "image2", "tee", "data", "sdp", "rtsp" }, banned => Assert.DoesNotContain(banned, demuxers));
     }
 
     [Theory]

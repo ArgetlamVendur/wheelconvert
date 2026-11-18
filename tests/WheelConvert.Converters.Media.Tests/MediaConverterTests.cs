@@ -29,6 +29,74 @@ public sealed class MediaConverterTests : IDisposable
     private MediaConverter Converter(FakeRunner runner, string? ffmpegPath = null) =>
         new(() => null, _ => ffmpegPath ?? FakeFfmpeg(), runner.RunAsync);
 
+    // ---- ADR-013 failure log (acceptance test 7) ----
+
+    [Fact]
+    public async Task Failed_run_logs_last_20_non_progress_lines_with_file_names_only()
+    {
+        var source = Source("secret clip.wav");
+        var stdErr = new List<string>();
+        for (var i = 0; i < 40; i++)
+        {
+            stdErr.Add("detail line " + i + " " + new string('x', 400));
+            stdErr.Add("frame=" + i);
+            stdErr.Add("progress=continue");
+        }
+
+        stdErr.Add("Input #0, wav, from 'file:" + source + "':");
+        stdErr.Add("Error opening output files: Invalid argument");
+        var runner = new FakeRunner { Result = new ProcessResult(1, string.Empty, string.Join('\n', stdErr), TimedOut: false) };
+        var log = new ListLog();
+        var converter = new MediaConverter(() => null, _ => FakeFfmpeg(), runner.RunAsync, log);
+
+        var result = await converter.ConvertAsync(ConversionRequest.Create(source, TargetCatalog.AudioMp3), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.False(result.Success);
+        var line = Assert.Single(log.Lines);
+        var parts = line.Split(" | ");
+        Assert.Equal(20, parts.Length);
+        Assert.DoesNotContain("frame=", line, StringComparison.Ordinal);
+        Assert.DoesNotContain("progress=", line, StringComparison.Ordinal);
+        Assert.DoesNotContain(_folder.Path, line, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Input #0, wav, from 'file:secret clip.wav'", line, StringComparison.Ordinal);
+        Assert.All(parts.Skip(1), p => Assert.True(p.Length <= 300));
+        Assert.DoesNotContain("secret clip.wav", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RedactPaths_replaces_both_paths_with_file_names_in_either_slash_style()
+    {
+        var input = Path.Combine(_folder.Path, "in dir", "a.mov");
+        var output = Path.Combine(_folder.Path, "in dir", ".~wc-1.mp3");
+
+        var text = MediaConverter.RedactPaths($"x {input} y {output.Replace('\\', '/')} z", input, output);
+
+        Assert.Equal("x a.mov y .~wc-1.mp3 z", text);
+    }
+
+    [Fact]
+    public void Whitelist_refusal_maps_to_corrupt_input()
+    {
+        var stdErr = "[in#0 @ 0000022219b6cc80] Format not on whitelist '" + FfmpegArguments.InputFormatWhitelist + "'\n"
+            + "[in#0 @ 0000022219ad2200] Error opening input: Invalid argument\n"
+            + "Error opening input file file:clip.avi.\n"
+            + "Error opening input files: Invalid argument\n";
+
+        Assert.Equal(ConversionError.CorruptInput, MediaConverter.MapFailure(stdErr, "clip.avi", []).Error);
+    }
+
+    [Fact]
+    public async Task Successful_run_logs_nothing()
+    {
+        var log = new ListLog();
+        var converter = new MediaConverter(() => null, _ => FakeFfmpeg(), new FakeRunner { StdErrLines = ["frame=1"] }.RunAsync, log);
+
+        var result = await converter.ConvertAsync(ConversionRequest.Create(Source(), TargetCatalog.AudioMp3), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Empty(log.Lines);
+    }
+
     private string Source(string name = "tone.wav") => _folder.CreateFile(name, [0x52, 0x49, 0x46, 0x46, 9, 9, 9]);
 
     // ---- Acceptance test 2: CheckHealth with a fake PATH ----
@@ -163,7 +231,7 @@ public sealed class MediaConverterTests : IDisposable
         Assert.True(result.Success);
         var args = runner.Arguments!;
         Assert.DoesNotContain("-x.wav", args);
-        Assert.Equal(Path.GetFullPath(source), args[args.ToList().IndexOf("-i") + 1]);
+        Assert.Equal("file:" + Path.GetFullPath(source), args[args.ToList().IndexOf("-i") + 1]);
         Assert.True(Path.IsPathFullyQualified(args[^1]));
         Assert.Equal(Path.Combine(_folder.Path, "-x (converted).mp3"), result.OutputPaths.Single());
     }
