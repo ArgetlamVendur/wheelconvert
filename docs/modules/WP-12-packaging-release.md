@@ -35,3 +35,7 @@ A downloadable, installable release on GitHub, with licences in order and the an
 Read AGENTS.md, docs/STATUS.md, docs/modules/WP-12-packaging-release.md, ADR-005, ADR-006, ADR-010.
 You are the builder for WP-12. Create branch wp-12-release from main. Restate the plan in 3–5 lines and wait for "go".
 ```
+
+## Notes (added by WP-22)
+- The `%TEMP%\.net\WheelConvert\` single-file extraction folder is not created (checked 2026-11-18 by publishing with the release flags and starting the exe: no `%TEMP%\.net` appeared). The uninstaller needs no change; this follow-up is closed.
+- Inno Setup is pinned to 6.7.1 in `release.yml`; the exe's version now comes from the tag (WP-22).

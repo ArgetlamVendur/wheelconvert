@@ -53,7 +53,9 @@ jobs:
         run: dotnet restore WheelConvert.sln
 
       - name: Build
-        run: dotnet build WheelConvert.sln -c Release --no-restore
+        # -p:Version gives the exe file version 0.1.0.0 and a product version equal to the full tag (0.1.0-rc2).
+        # build.yml keeps the default 0.1.0.
+        run: dotnet build WheelConvert.sln -c Release --no-restore -p:Version=$env:VERSION
 
       - name: Core tests
         run: dotnet run --project tests/WheelConvert.Core.Tests -c Release --no-build
@@ -72,7 +74,7 @@ jobs:
 
       # Same command as build.yml, so the released exe is what CI already tested.
       - name: Publish app (framework-dependent, single-file managed code, native DLLs beside it)
-        run: dotnet publish src/WheelConvert.App -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false -o publish
+        run: dotnet publish src/WheelConvert.App -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false -p:Version=$env:VERSION -o publish
 
       - name: Stage files (exe, native DLLs, licences)
         shell: pwsh
@@ -120,7 +122,8 @@ jobs:
       - name: Install Inno Setup
         shell: pwsh
         run: |
-          choco install innosetup -y --no-progress
+          # Pinned to the version the v0.1.0-rc1 run used. Update deliberately, then re-run the installer hand tests.
+          choco install innosetup --version 6.7.1 -y --no-progress
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build installer
@@ -161,6 +164,8 @@ jobs:
     # Tags only. This is the only job with write access, and it creates a DRAFT (never a published release).
     if: startsWith(github.ref, 'refs/tags/v')
     needs: package
+    # Second guard: the 'release' environment (Settings > Environments) needs an approval and only allows v* tags.
+    environment: release
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
