@@ -16,7 +16,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 10 | QR reader | SHELVED (user, 2026-11-17) | Sonnet | — | wp-10-qr (draft PR #17) | Built at 0fc6443, not reviewed; QR stub stays on main so no QR segment shows |
 | 11 | Integration | DONE | Claude Code (Opus) | Antigravity | PR #2 (b234417) | Merged |
 | 12 | Packaging + release | DONE | Sonnet | Opus | PR #19 | Merged. Reviews: docs/reviews/WP-12-2026-11-17.md (APPROVE after 2 fix rounds). Checkpoint 3 user tests PASS 2026-11-17 (Defender clean, VirusTotal skipped); GO recorded by user. Tag `v0.1.0-rc1` pushed by the user 2026-11-18; draft prerelease check and publishing pending |
-| 13 | Core: multi-input targets | TODO (needs ADR-011 Accepted) | — | — | — | Blocks 14, 15, 16, 18, 19, 20. Adds `MaxInputs`: 2+ PDFs hide 5 single-file targets |
+| 13 | Core: multi-input targets | TODO (ADR-011 Accepted 2026-11-18) | — | — | — | Blocks 14, 15, 16, 18, 19, 20. Adds `MaxInputs`: 2+ PDFs hide 5 single-file targets |
 | 14 | PDF merge | TODO | — | — | — | Pdf project; before WP-20 |
 | 15 | Images → PDF | TODO | — | — | — | Image project; before WP-16 |
 | 16 | Smaller (images, video) | TODO | — | — | — | Image + Media; after WP-21; before WP-19 |
@@ -24,7 +24,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 18 | PDF → Word (text only) | TODO | — | — | — | New Docx project |
 | 19 | Image resize | TODO | — | — | — | Image + App dialog |
 | 20 | Smaller PDF | TODO | — | — | — | Pdf project; no Ghostscript; direct SkiaSharp pin |
-| 21 | FFmpeg hardening + error log | TODO (needs ADR-013 Accepted) | — | — | — | Before WP-16 and WP-17 |
+| 21 | FFmpeg hardening + error log | TODO (ADR-013 Accepted 2026-11-18) | — | — | — | Before WP-16 and WP-17 |
 | 22 | Release hardening + version from tag | TODO | — | — | — | Before the next tag |
 
 From 2026-11-10 only Claude models are used: the reviewer must be a different model from the builder, in a fresh session (AGENTS.md §2). From 2026-11-12 the remaining work runs as an orchestrated run (AGENTS.md §9).

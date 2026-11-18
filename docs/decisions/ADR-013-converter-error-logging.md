@@ -1,5 +1,5 @@
 # ADR-013: Converter error lines in the log
-Status: Proposed (needs user approval) · Date: 2026-11-18
+Status: Accepted · 2026-11-18 (user, via overnight-run authorisation) · Date: 2026-11-18
 
 ## Context
 When an FFmpeg or Magick.NET conversion fails, the user sees a short message ("Couldn't convert clip.mov.") and the log (`FileLog`) records only the failure kind. FFmpeg's own error lines and Magick's exception text, which say *why*, are thrown away. That makes bug reports from real users nearly useless. This was a WP-06/WP-07 follow-up that needed an ADR because it changes what the log contains.
