@@ -1,6 +1,6 @@
 # Go / no-go: antivirus and signing (WP-12)
 
-Status: **Checkpoint 3 results recorded 2026-11-17** (section 3 and the section after it). Microsoft Defender: clean. VirusTotal: skipped by the user. This page answers ADR-006: "does the Shift-drag mouse hook get flagged?"
+Status: **Checkpoint 3 results recorded 2026-11-17; `v0.1.0-rc1` release files checked 2026-11-18** (section 3). Microsoft Defender: clean. VirusTotal: clean on the rc1 Setup exe. This page answers ADR-006: "does the Shift-drag mouse hook get flagged?"
 
 ## 1. What to scan
 The file that real users run: the installed `WheelConvert.exe`.
@@ -23,8 +23,10 @@ Check first that the SHA-256 of the files matches `SHA256SUMS.txt` from the rele
 | 2026-11-17 | `WheelConvert-Setup-0.0.0-pr19.exe` (hash matched `SHA256SUMS.txt`; first 12 chars not reported) | Microsoft Defender (right-click scan) | clean, no threats found | none | no | Unsigned build. No SmartScreen or Defender pop-up during install or start |
 | 2026-11-17 | Installed `WheelConvert.exe` and the DLLs (`Magick.Native-Q8-x64.dll`, `libSkiaSharp.dll`, `pdfium.dll`) | Microsoft Defender (right-click scan) | clean, no threats found | none | no | Installed app, no pop-ups in the first minutes of use |
 | 2026-11-17 | Setup exe, portable zip, installed exe | VirusTotal | SKIPPED (user choice, nothing uploaded) | n/a | unclear (not checked) | Not checked by choice |
+| 2026-11-18 | `WheelConvert-Setup-0.1.0-rc1.exe` (`b501b6b73bee`; matches `SHA256SUMS.txt` and GitHub's asset digest) | Microsoft Defender (right-click scan) | clean, no threats found | none | no | Tagged build from commit `ca1a162` (draft release by `release.yml`) |
+| 2026-11-18 | `WheelConvert-Setup-0.1.0-rc1.exe` (`b501b6b73bee`) | VirusTotal (uploaded by the user) | clean, no detections | none | no | Engine count not reported. The file's hash is now public on VirusTotal |
 
-Decision: **GO** (default Shift-drag trigger kept, no change needed; VirusTotal not checked)  Date: 2026-11-17  (recorded from the user's report; the user confirms it by merging the PR)
+Decision: **GO** (default Shift-drag trigger kept, no change needed)  Date: 2026-11-17, confirmed 2026-11-18 on the tagged `v0.1.0-rc1` Setup exe with Defender **and** VirusTotal clean, so ADR-006's go/no-go is now met as written  (recorded from the user's reports)
 
 ## Checkpoint 3 results (2026-11-17)
 - **Build tested:** CI artifact `release-files` from run 44082534934 (commit 4b62c62), version `0.0.0-pr19`, unsigned.

@@ -15,7 +15,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 09 | PDF reorder window | DONE | Sonnet | Opus (Fable first review) | PR #16 | Merged. Re-review APPROVE (docs/reviews/WP-09-2026-11-13.md); 27 PageOrderTests (6 STA window tests). User tests passed at Checkpoint 2 (2026-11-17) |
 | 10 | QR reader | SHELVED (user, 2026-11-17) | Sonnet | — | wp-10-qr (draft PR #17) | Built at 0fc6443, not reviewed; QR stub stays on main so no QR segment shows |
 | 11 | Integration | DONE | Claude Code (Opus) | Antigravity | PR #2 (b234417) | Merged |
-| 12 | Packaging + release | DONE | Sonnet | Opus | PR #19 | Merged. Reviews: docs/reviews/WP-12-2026-11-17.md (APPROVE after 2 fix rounds). Checkpoint 3 user tests PASS 2026-11-17 (Defender clean, VirusTotal skipped); GO recorded by user. Tag `v0.1.0-rc1` pushed by the user 2026-11-18; draft prerelease check and publishing pending |
+| 12 | Packaging + release | DONE | Sonnet | Opus | PR #19 | Merged. Reviews: docs/reviews/WP-12-2026-11-17.md (APPROVE after 2 fix rounds). Checkpoint 3 user tests PASS 2026-11-17 (Defender clean, VirusTotal skipped); GO recorded by user. Tag `v0.1.0-rc1` pushed by the user 2026-11-18 (commit `ca1a162`); draft has the 3 files; Setup exe hash matches; Defender and VirusTotal clean (docs/GO-NO-GO.md). Publishing as a pre-release is the user's step |
 | 13 | Core: multi-input targets | TODO (needs ADR-011 Accepted) | — | — | — | Blocks 14, 15, 16, 18, 19, 20. Adds `MaxInputs`: 2+ PDFs hide 5 single-file targets |
 | 14 | PDF merge | TODO | — | — | — | Pdf project; before WP-20 |
 | 15 | Images → PDF | TODO | — | — | — | Image project; before WP-16 |
@@ -31,7 +31,7 @@ From 2026-11-10 only Claude models are used: the reviewer must be a different mo
 From 2026-11-17 Opus replaces Fable as orchestrator and reviewer.
 
 ## Not yet verified anywhere
-- Shift-drag hook vs. antivirus: **GO** on Microsoft Defender (2026-11-17, see docs/GO-NO-GO.md). VirusTotal not yet checked; the user decides before publishing `v0.1.0-rc1`.
+- Shift-drag hook vs. antivirus: **GO**. Defender clean (2026-11-17, PR build; 2026-11-18, rc1 Setup exe); VirusTotal clean on the rc1 Setup exe (2026-11-18). See docs/GO-NO-GO.md. Unsigned, so SmartScreen may still warn new users until the file builds reputation.
 - PDF wheel with 10 segments (one PDF, after v0.2): hand test in WP-14.
 
 ## Open questions for the user

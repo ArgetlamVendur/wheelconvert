@@ -25,10 +25,10 @@ A downloadable, installable release on GitHub, with licences in order and the an
 ## Acceptance tests
 | # | Who | Steps | Expected | Result |
 |---|---|---|---|---|
-| 1 | Agent | Push tag `v0.1.0-rc1` in a fork/branch | Draft release with 3 assets | NEEDS USER (after merge; tag push is the user's step). Pipeline proven without a tag by the `release.yml` pull_request run, which builds and uploads the same 3 files as workflow artifacts: see PR |
+| 1 | Agent | Push tag `v0.1.0-rc1` in a fork/branch | Draft release with 3 assets | PASS (user, 2026-11-18): tag pushed on `ca1a162`, draft created with the 3 files (plus GitHub's 2 source archives) |
 | 2 | User | Install on a clean Windows user account | Starts, tray icon, no admin prompt | PASS (user, 2026-11-17, separate account; build `0.0.0-pr19` from commit 4b62c62) |
 | 3 | User | Uninstall | Run key gone, program folder gone | PASS (user, 2026-11-17, separate account) |
-| 4 | User | Defender + VirusTotal | Results recorded in GO-NO-GO.md | PASS for Defender (clean); VirusTotal skipped by user choice. Results in `docs/GO-NO-GO.md` |
+| 4 | User | Defender + VirusTotal | Results recorded in GO-NO-GO.md | PASS: Defender clean (2026-11-17 and on the rc1 Setup exe 2026-11-18); VirusTotal clean on the rc1 Setup exe (2026-11-18). Results in `docs/GO-NO-GO.md` |
 
 ## Start prompt
 ```
