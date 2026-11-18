@@ -1,5 +1,5 @@
 # ADR-004: FFmpeg is detected, not bundled
-Status: Accepted · Date: 2026-10-20
+Status: Accepted · Date: 2026-10-20 · Amended by [ADR-012](ADR-012-ffmpeg-assisted-install.md) (assisted install, once ADR-012 is accepted)
 
 ## Context
 Bundling FFmpeg binaries brings LGPL/GPL obligations (source offer, matching build configuration, patent-encumbered codecs) and ~100 MB of download.

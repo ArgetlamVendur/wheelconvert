@@ -14,6 +14,9 @@ One file per locked decision. Agents must follow these; changing one needs user 
 | [008](ADR-008-test-runner.md) | Dependency-free test runner for Core | Accepted |
 | [009](ADR-009-qr-scope.md) | QR reading from images only in v1 | Accepted |
 | [010](ADR-010-package-versions.md) | Package version register | Living document |
+| [011](ADR-011-multi-file-targets.md) | Multi-input targets, `MinInputs`/`MaxInputs`, v0.2 target set | Proposed |
+| [012](ADR-012-ffmpeg-assisted-install.md) | One-click FFmpeg install through winget (amends 004) | Proposed |
+| [013](ADR-013-converter-error-logging.md) | Converter error lines in the log | Proposed |
 
 Template for a new ADR:
 
