@@ -24,9 +24,9 @@ Small fixes left over from WP-12, so the next release is built the same way ever
 ## Acceptance tests
 | # | Who | Test | Expected | Result |
 |---|---|---|---|---|
-| 1 | Agent | PR run of `release.yml` | Green; `draft-release` skipped; artifacts as before | PENDING (filled after the PR run, see PR) |
-| 2 | Agent | Log of the PR run | Inno Setup installed at the pinned version | PENDING (6.7.1 pinned; confirm in the PR run log) |
-| 3 | Agent | PR artifact exe: read its version resource | File version `0.0.0.0`, product version `0.0.0-pr<N>` | PASS locally with `-p:Version=0.0.0-pr99`: FileVersion 0.0.0.0, ProductVersion 0.0.0-pr99. PR artifact check PENDING |
+| 1 | Agent | PR run of `release.yml` | Green; `draft-release` skipped; artifacts as before | PASS (run 44366531223: package success, draft-release skipped, 3 files uploaded) |
+| 2 | Agent | Log of the PR run | Inno Setup installed at the pinned version | PASS (log: choco step with --version 6.7.1; runner reports v6.7.1) |
+| 3 | Agent | PR artifact exe: read its version resource | File version `0.0.0.0`, product version `0.0.0-pr<N>` | PASS locally with `-p:Version=0.0.0-pr99`: FileVersion 0.0.0.0, ProductVersion 0.0.0-pr99. PR artifact exe: FileVersion 0.0.0.0, ProductVersion 0.0.0-pr23+commit (the SDK appends the commit; the tray strips it) |
 | 4 | Agent | `dotnet build -c Release` with the newest .NET 8 SDK (not the pinned one) | No CA2027 | PARTIAL: only SDK 8.0.428 is installed here, which never raised CA2027. Cause removed (Task.Delay race replaced by WaitAsync); not verified on a newer SDK |
 | 5 | User | Create the `release` environment as the PR describes | Done | NEEDS USER |
 | 6 | User | Next tag (`v0.1.0-rc2` or `v0.2.0-…`): the run waits for your approval before creating the draft | Approve → draft appears; the installed exe's Properties → Details show the tag's version | NEEDS USER |
