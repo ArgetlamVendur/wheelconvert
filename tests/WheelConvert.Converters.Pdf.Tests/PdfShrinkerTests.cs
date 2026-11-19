@@ -319,6 +319,236 @@ public sealed class PdfShrinkerTests : IDisposable
         Assert.Empty(_folder.TempFiles());
     }
 
+    // Finding 1 (ADR-013): the shared log never gets a folder path or a stack trace.
+    [Fact]
+    public async Task Shrink_RenderCheckFailsWithPaths_LogHasFileNamesOnly()
+    {
+        var source = BigScan("render.pdf");
+        var shrinker = new PdfShrinker(_log, (tempB, _) => throw new IOException(
+            $"The process cannot access the file '{tempB}' or '{tempB.Replace('\\', '/')}' next to {source}."));
+
+        var result = await shrinker.ShrinkAsync(Request(source), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.Equal(ConversionError.Unknown, result.Error);
+        var line = Assert.Single(_log.Errors);
+        Assert.DoesNotContain(_folder.Path, line, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(_folder.Path.Replace('\\', '/'), line, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("render.pdf", line);
+        Assert.Contains("IOException", line);
+        Assert.DoesNotContain("   at ", line);
+        Assert.All(_log.Exceptions, Assert.Null);
+        Assert.True(line.Length <= 500);
+    }
+
+    // Finding 2: quality 70
+    [Fact]
+    public async Task Shrink_UnderLimit_ReencodesAtQuality70()
+    {
+        var original = ImagePdf.MakeJpeg(800, 600, quality: 100);
+        var source = Path.Combine(_folder.Path, "q.pdf");
+        using (var document = new PdfDocument())
+        {
+            ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, original, 800, 600));
+            document.Save(source);
+        }
+
+        var result = await Run(source);
+
+        Assert.True(result.Success, result.Message);
+        using var shrunk = TestFolder.Read(result.OutputPaths[0]);
+        Assert.Equal(ReencodeAt70(original), Assert.Single(Images(shrunk)).Stream.Value);
+    }
+
+    // Finding 2: replace only if smaller; never enlarge
+    [Fact]
+    public async Task Shrink_ImageThatWouldGrow_StaysByteIdentical_AndIsNeverEnlarged()
+    {
+        var lowQuality = ImagePdf.MakeJpeg(800, 600, quality: 20);
+        var big = ImagePdf.MakeJpeg(3000, 2000);
+        var source = Path.Combine(_folder.Path, "grow.pdf");
+        using (var document = new PdfDocument())
+        {
+            ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, lowQuality, 800, 600));
+            ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, big, 3000, 2000));
+            document.Save(source);
+        }
+
+        var shrinker = new PdfShrinker(_log);
+        var result = await shrinker.ShrinkAsync(Request(source), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(1, shrinker.LastStats!.Replaced);
+        Assert.Equal(2, shrinker.LastStats.Eligible);
+        using var shrunk = TestFolder.Read(result.OutputPaths[0]);
+        var small = Images(shrunk).Single(i => i.Elements.GetInteger("/Width") == 800);
+        Assert.Equal(lowQuality, small.Stream.Value);
+        Assert.Equal(600, small.Elements.GetInteger("/Height"));
+    }
+
+    [Fact]
+    public async Task Shrink_SmallImageUnderLimit_NeverEnlarged()
+    {
+        var original = ImagePdf.MakeJpeg(800, 600, quality: 100);
+        var source = Path.Combine(_folder.Path, "small.pdf");
+        using (var document = new PdfDocument())
+        {
+            ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, original, 800, 600));
+            document.Save(source);
+        }
+
+        var result = await Run(source);
+
+        Assert.True(result.Success, result.Message);
+        using var shrunk = TestFolder.Read(result.OutputPaths[0]);
+        var image = Assert.Single(Images(shrunk));
+        Assert.Equal(800, image.Elements.GetInteger("/Width"));
+        Assert.Equal(600, image.Elements.GetInteger("/Height"));
+    }
+
+    // Finding 2: content-stream compression (req. 4)
+    [Fact]
+    public async Task Shrink_ContentStreams_AreFlateCompressed()
+    {
+        var source = Path.Combine(_folder.Path, "content.pdf");
+        using (var document = new PdfDocument())
+        {
+            document.Options.CompressContentStreams = false;
+            ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, ImagePdf.MakeJpeg(3000, 2000), 3000, 2000));
+            document.Save(source);
+        }
+
+        using (var before = TestFolder.Read(source))
+        {
+            Assert.DoesNotContain(ContentStreams(before), d => d.Elements.GetName("/Filter") == "/FlateDecode");
+        }
+
+        var result = await Run(source);
+
+        Assert.True(result.Success, result.Message);
+        using var shrunk = TestFolder.Read(result.OutputPaths[0]);
+        var streams = ContentStreams(shrunk);
+        Assert.NotEmpty(streams);
+        Assert.Contains(streams, d => d.Elements.GetName("/Filter") == "/FlateDecode");
+    }
+
+    // Finding 2: cancellation between images (req. 6)
+    [Fact]
+    public async Task Shrink_CancelAfterFirstImage_StopsTheImagePass_BeforeSaveAndRenderCheck()
+    {
+        var jpeg = ImagePdf.MakeJpeg(2500, 2000);
+        var source = Path.Combine(_folder.Path, "cancel2.pdf");
+        using (var document = new PdfDocument())
+        {
+            for (var i = 0; i < 3; i++)
+            {
+                ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, jpeg, 2500, 2000));
+            }
+
+            document.Save(source);
+        }
+
+        var renderCalls = 0;
+        var shrinker = new PdfShrinker(_log, (_, _) =>
+        {
+            renderCalls++;
+            return Task.CompletedTask;
+        });
+        using var cts = new CancellationTokenSource();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            shrinker.ShrinkAsync(Request(source), new SafeOutputWriter(), new CancelAtProgress(cts, 0.3), cts.Token));
+
+        Assert.Null(shrinker.LastStats); // the pass never finished: it stopped between images
+        Assert.Equal(0, renderCalls);
+        Assert.Empty(_folder.TempFiles());
+    }
+
+    // Finding 2: DCTDecode only / 8 bits only. The bytes are real JPEG data, so only the dictionary can tell them apart.
+    [Fact]
+    public async Task Shrink_NonDctFilter_AndNon8BitImages_AreSkippedUnchanged()
+    {
+        var jpeg = ImagePdf.MakeJpeg(1200, 900);
+        var big = ImagePdf.MakeJpeg(3000, 2000);
+        var source = Path.Combine(_folder.Path, "other.pdf");
+        using (var document = new PdfDocument())
+        {
+            ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, jpeg, 1200, 900, filter: "/FlateDecode"));
+            ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, jpeg, 1200, 900, bits: 16));
+            ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, big, 3000, 2000));
+            document.Save(source);
+        }
+
+        var shrinker = new PdfShrinker(_log);
+        var result = await shrinker.ShrinkAsync(Request(source), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(new PdfShrinker.Stats(1, 2, 1), shrinker.LastStats);
+        using var shrunk = TestFolder.Read(result.OutputPaths[0]);
+        Assert.Equal(2, Images(shrunk).Count(i => i.Stream.Value.AsSpan().SequenceEqual(jpeg)));
+    }
+
+    // Finding 6: an image that is another image's mask is left alone, even when it would qualify on its own
+    [Fact]
+    public async Task Shrink_ImageUsedAsMaskOfAnotherImage_IsSkipped()
+    {
+        var maskJpeg = ImagePdf.MakeJpeg(3000, 2000, gray: true);
+        var source = Path.Combine(_folder.Path, "maskof.pdf");
+        using (var document = new PdfDocument())
+        {
+            var mask = ImagePdf.AddImage(document, maskJpeg, 3000, 2000, "/DeviceGray");
+            ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, ImagePdf.MakeJpeg(3000, 2000), 3000, 2000, smaskImage: mask));
+            document.Save(source);
+        }
+
+        var shrinker = new PdfShrinker(_log);
+        var result = await shrinker.ShrinkAsync(Request(source), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(new PdfShrinker.Stats(0, 2, 0), shrinker.LastStats);
+        Assert.Empty(_folder.TempFiles());
+    }
+
+    // Finding 3
+    [Fact]
+    public async Task Shrink_SourceVanishedMidRun_SourceMissing_NoTempLeft()
+    {
+        var missing = Path.Combine(_folder.Path, "gone.pdf");
+
+        var result = await new PdfShrinker(_log).ShrinkAsync(Request(missing), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.Equal(ConversionError.SourceMissing, result.Error);
+        Assert.Empty(_folder.TempFiles());
+    }
+
+    [Fact]
+    public async Task Shrink_SourceLockedByAnotherApp_ReportsInUse_NotSaveError()
+    {
+        var source = BigScan("locked.pdf");
+        using var hold = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.None);
+
+        var result = await new PdfShrinker(_log).ShrinkAsync(Request(source), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("Couldn't open this PDF. Another app may be using it.", result.Message);
+        Assert.Empty(_folder.TempFiles());
+    }
+
+    private static byte[] ReencodeAt70(byte[] jpeg)
+    {
+        using var codec = SkiaSharp.SKCodec.Create(new SkiaSharp.SKMemoryStream(jpeg));
+        using var bitmap = new SkiaSharp.SKBitmap(new SkiaSharp.SKImageInfo(codec.Info.Width, codec.Info.Height, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Opaque));
+        codec.GetPixels(bitmap.Info, bitmap.GetPixels());
+        using var image = SkiaSharp.SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Jpeg, 70);
+        return data.ToArray();
+    }
+
+    private static List<PdfDictionary> ContentStreams(PdfDocument document) =>
+        document.Internals.GetAllObjects()
+            .OfType<PdfDictionary>()
+            .Where(d => d.Stream is not null && d.Elements.GetName("/Subtype") != "/Image" && d.Elements.GetName("/Type") != "/XRef")
+            .ToList();
+
     [Fact]
     public void JpegInfo_ReadsFrameHeader_RejectsNonJpeg()
     {
@@ -377,7 +607,13 @@ public sealed class PdfShrinkerTests : IDisposable
         {
         }
 
-        public void Error(string message, Exception? exception = null) => Errors.Add(message);
+        public List<Exception?> Exceptions { get; } = [];
+
+        public void Error(string message, Exception? exception = null)
+        {
+            Errors.Add(message);
+            Exceptions.Add(exception);
+        }
     }
 
     private sealed class CountingWriter : IOutputWriter

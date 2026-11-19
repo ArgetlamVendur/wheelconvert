@@ -42,7 +42,7 @@ internal static class ImagePdf
     }
 
     /// <summary>Adds an image XObject to <paramref name="document"/> and returns it (not yet used on any page).</summary>
-    public static PdfDictionary AddImage(PdfDocument document, byte[] jpeg, int width, int height, string colorSpace = "/DeviceRGB", bool addSMask = false)
+    public static PdfDictionary AddImage(PdfDocument document, byte[] jpeg, int width, int height, string colorSpace = "/DeviceRGB", bool addSMask = false, string filter = "/DCTDecode", int bits = 8, PdfDictionary? smaskImage = null)
     {
         var image = new PdfDictionary(document);
         image.Elements["/Type"] = new PdfName("/XObject");
@@ -50,10 +50,15 @@ internal static class ImagePdf
         image.Elements.SetInteger("/Width", width);
         image.Elements.SetInteger("/Height", height);
         image.Elements["/ColorSpace"] = new PdfName(colorSpace);
-        image.Elements.SetInteger("/BitsPerComponent", 8);
-        image.Elements["/Filter"] = new PdfName("/DCTDecode");
+        image.Elements.SetInteger("/BitsPerComponent", bits);
+        image.Elements["/Filter"] = new PdfName(filter);
         image.CreateStream(jpeg);
         document.Internals.AddObject(image);
+        if (smaskImage is not null)
+        {
+            image.Elements["/SMask"] = smaskImage.Reference;
+        }
+
         if (addSMask)
         {
             var mask = new PdfDictionary(document);

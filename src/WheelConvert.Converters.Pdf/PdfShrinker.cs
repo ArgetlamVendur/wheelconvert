@@ -39,14 +39,31 @@ internal sealed class PdfShrinker(ILog log, Func<string, CancellationToken, Task
         var committed = false;
         try
         {
-            var sourceLength = new FileInfo(request.SourcePath).Length;
             tempA = output.CreateTempPath(request.SourcePath, ".pdf");
             tempB = output.CreateTempPath(request.SourcePath, ".pdf");
 
             // The source is opened read-only and shared: another app may have it open.
-            using (var from = new FileStream(request.SourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-            using (var to = new FileStream(tempA, FileMode.Create, FileAccess.Write, FileShare.None))
+            FileStream from;
+            try
             {
+                from = new FileStream(request.SourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                return ConversionResult.Fail(ConversionError.SourceMissing, "The file is no longer there.");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return ConversionResult.Fail(ConversionError.Unknown, "Couldn't open this PDF. Another app may be using it.");
+            }
+
+            long sourceLength;
+            using (from)
+            {
+                sourceLength = from.Length;
+
+                // CreateTempPath only picks a name, so CreateNew fails loudly if a temp name were ever reused.
+                using var to = new FileStream(tempA, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                 await from.CopyToAsync(to, cancellationToken).ConfigureAwait(false);
             }
 
@@ -67,7 +84,15 @@ internal sealed class PdfShrinker(ILog log, Func<string, CancellationToken, Task
                 stats = ShrinkImages(document, progress, cancellationToken);
                 LastStats = stats;
                 document.Options.CompressContentStreams = true;
-                using var stream = new FileStream(tempB, FileMode.Create, FileAccess.Write, FileShare.None);
+
+                // PDFsharp only compresses streams it has wrapped as page contents, and a loaded page wraps them lazily.
+                for (var p = 0; p < document.PageCount; p++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    _ = document.Pages[p].Contents.Elements.Count;
+                }
+
+                using var stream = new FileStream(tempB, FileMode.CreateNew,FileAccess.Write, FileShare.None);
                 document.Save(stream);
             }
 
@@ -87,7 +112,7 @@ internal sealed class PdfShrinker(ILog log, Func<string, CancellationToken, Task
             }
             catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
             {
-                log.Error("pdf.smaller: the shrunk PDF did not render, so it was discarded.", ex);
+                LogFailure(ex, request.SourcePath, [tempA, tempB]);
                 return ConversionResult.Fail(ConversionError.Unknown, NoResultMessage);
             }
 
@@ -113,6 +138,32 @@ internal sealed class PdfShrinker(ILog log, Func<string, CancellationToken, Task
         }
     }
 
+    /// <summary>
+    /// ADR-013: the log is shared, so it gets the exception type and message only (no stack trace), with every known path
+    /// reduced to its file name and the text cut short. PDFium puts full temp paths in its messages.
+    /// </summary>
+    private void LogFailure(Exception ex, string sourcePath, IEnumerable<string> tempPaths)
+    {
+        try
+        {
+            var message = ex.Message;
+            foreach (var path in tempPaths.Append(sourcePath).Select(Path.GetFullPath).OrderByDescending(p => p.Length))
+            {
+                var name = Path.GetFileName(path);
+                message = message.Replace(path, name, StringComparison.OrdinalIgnoreCase)
+                    .Replace(path.Replace(Path.DirectorySeparatorChar, '/'), name, StringComparison.OrdinalIgnoreCase)
+                    .Replace(path.Replace(Path.DirectorySeparatorChar, '\\'), name, StringComparison.OrdinalIgnoreCase);
+            }
+
+            var text = $"Smaller PDF failed to render for {Path.GetFileName(sourcePath)}: {ex.GetType().Name}: {message}";
+            log.Error(text.Length <= 500 ? text : text[..500]);
+        }
+        catch (Exception logEx) when (logEx is not OutOfMemoryException)
+        {
+            // Logging must never change the conversion result.
+        }
+    }
+
     private static PdfDocument? OpenForEdit(string path, out ConversionResult? failure)
     {
         failure = null;
@@ -132,7 +183,6 @@ internal sealed class PdfShrinker(ILog log, Func<string, CancellationToken, Task
                 failure = ConversionResult.Fail(ConversionError.PasswordProtected, "This PDF is password-protected.");
                 return null;
             }
-
 
             return document;
         }
