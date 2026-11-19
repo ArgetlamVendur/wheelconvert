@@ -267,4 +267,43 @@ public static class MiscTests
         Assert.True(File.Exists(log.FilePath + ".1"));
         Assert.Equal(1, File.ReadAllLines(log.FilePath).Length);
     }
+
+    [Test]
+    public static void FileLog_SeveralInstancesAndThreads_KeepEveryLineIntact()
+    {
+        using var dir = new TempDir();
+        var path = Path.Combine(dir.Path, "shared.log");
+        const int instances = 3, threadsPerInstance = 3, perThread = 60;
+        // Pre-fill to just under 1 MB so the roll happens early in the run; 540 lines of ~950 bytes then stay under 1 MB, so only one roll happens.
+        var payload = new string('p', 900);
+        File.WriteAllText(path, new string('x', (int)FileLog.MaxBytes - 20_000) + Environment.NewLine);
+
+        var logs = Enumerable.Range(0, instances).Select(_ => new FileLog(path)).ToArray();
+        var tasks = new List<Task>();
+        for (var i = 0; i < instances; i++)
+        {
+            var log = logs[i];
+            for (var t = 0; t < threadsPerInstance; t++)
+            {
+                var id = i * threadsPerInstance + t;
+                tasks.Add(Task.Factory.StartNew(() =>
+                {
+                    for (var n = 0; n < perThread; n++)
+                    {
+                        log.Info($"id={id} n={n} {payload} END");
+                    }
+                }, TaskCreationOptions.LongRunning));
+            }
+        }
+
+        Task.WaitAll(tasks.ToArray());
+
+        var all = File.ReadAllLines(path).Concat(File.Exists(path + ".1") ? File.ReadAllLines(path + ".1") : []).ToList();
+        var mine = all.Where(l => l.Contains(" INFO id=", StringComparison.Ordinal)).ToList();
+        Assert.True(File.Exists(path + ".1"), "the roll should have happened during the run");
+        Assert.Equal(instances * threadsPerInstance * perThread, mine.Count);
+        Assert.True(mine.All(l => l.EndsWith(payload + " END", StringComparison.Ordinal)), "every line is intact");
+        var keys = mine.Select(l => l.Substring(l.IndexOf("id=", StringComparison.Ordinal), l.IndexOf(' ', l.IndexOf("n=", StringComparison.Ordinal)) - l.IndexOf("id=", StringComparison.Ordinal))).ToList();
+        Assert.Equal(mine.Count, keys.Distinct().Count());
+    }
 }
