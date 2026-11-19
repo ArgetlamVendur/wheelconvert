@@ -1,11 +1,21 @@
 namespace WheelConvert.Core.Contracts;
 
-/// <summary>One file + one target. A multi-file drop becomes several requests (see <see cref="Jobs.DropPlanner"/>).</summary>
+/// <summary>
+/// One file + one target. A multi-file drop becomes several requests (see <see cref="Jobs.DropPlanner"/>),
+/// except for targets with <see cref="ConversionTarget.CombinesInputs"/>: those get one request whose
+/// <see cref="SourcePath"/> is the first file and whose other files are in <see cref="AdditionalSourcePaths"/>.
+/// Output is named after, and written next to, <see cref="SourcePath"/> (CONTRACTS C2 S6). Every input is read-only.
+/// </summary>
 public sealed record ConversionRequest(
     string SourcePath,
     ConversionTarget Target,
-    IReadOnlyDictionary<string, string> Options)
+    IReadOnlyDictionary<string, string> Options,
+    IReadOnlyList<string>? AdditionalSourcePaths = null)
 {
+    /// <summary><see cref="SourcePath"/> followed by <see cref="AdditionalSourcePaths"/>.</summary>
+    public IReadOnlyList<string> AllSourcePaths =>
+        AdditionalSourcePaths is { Count: > 0 } more ? [SourcePath, .. more] : [SourcePath];
+
     public static ConversionRequest Create(string sourcePath, ConversionTarget target) =>
         new(sourcePath, target, new Dictionary<string, string>());
 
@@ -29,4 +39,19 @@ public static class OptionKeys
     public const string OutputLabel = "outputLabel";
 
     public const string DefaultOutputLabel = "converted";
+
+    /// <summary>image.resize: longest edge in pixels. Exactly one of LongEdge, Percent or Width/Height is set (ADR-011 section 5).</summary>
+    public const string ResizeLongEdge = "resizeLongEdge";
+
+    /// <summary>image.resize: scale in percent.</summary>
+    public const string ResizePercent = "resizePercent";
+
+    /// <summary>image.resize: target width in pixels (may be combined with <see cref="ResizeHeight"/>).</summary>
+    public const string ResizeWidth = "resizeWidth";
+
+    /// <summary>image.resize: target height in pixels (may be combined with <see cref="ResizeWidth"/>).</summary>
+    public const string ResizeHeight = "resizeHeight";
+
+    /// <summary>image.resize: "true" or "false"; whether images may be made larger.</summary>
+    public const string ResizeAllowEnlarge = "resizeAllowEnlarge";
 }

@@ -35,11 +35,21 @@ public sealed class FormatRegistry
     /// <summary>Re-run health checks, e.g. after the user installs FFmpeg.</summary>
     public void Refresh() => _snapshot = BuildSnapshot();
 
-    /// <summary>Targets for one file, ordered by priority, excluding same-format, disabled and unavailable ones.</summary>
+    /// <summary>
+    /// Targets for one file, ordered by priority, excluding same-format, disabled and unavailable ones.
+    /// A single file counts as one input, so targets with <see cref="ConversionTarget.MinInputs"/> above 1 are hidden.
+    /// </summary>
     public IReadOnlyList<ConversionTarget> GetTargetsFor(
         string path,
         IReadOnlySet<string>? disabledTargetIds = null,
-        int maxCount = int.MaxValue)
+        int maxCount = int.MaxValue) =>
+        GetTargetsFor(path, disabledTargetIds, maxCount, inputCount: 1);
+
+    private IReadOnlyList<ConversionTarget> GetTargetsFor(
+        string path,
+        IReadOnlySet<string>? disabledTargetIds,
+        int maxCount,
+        int? inputCount)
     {
         var kind = FileClassifier.Classify(path);
         if (kind == FileKind.Unsupported || maxCount <= 0)
@@ -54,6 +64,7 @@ public sealed class FormatRegistry
             .Where(t => !t.IsRedundantFor(ext))
             .Where(t => disabledTargetIds is null || !disabledTargetIds.Contains(t.Id))
             .Where(t => FindConverter(snapshot, ext, t.Id) is not null)
+            .Where(t => inputCount is not { } n || (n >= t.MinInputs && (t.MaxInputs is not { } max || n <= max)))
             .OrderBy(t => t.Priority)
             .ThenBy(t => t.Id, StringComparer.Ordinal)
             .Take(maxCount)
@@ -63,6 +74,8 @@ public sealed class FormatRegistry
     /// <summary>
     /// Targets for a multi-file drag. Rule: the FIRST path's kind decides the wheel; a target is shown if at least
     /// one dragged file of that kind can use it. Files of other kinds are skipped later by <see cref="Jobs.DropPlanner"/>.
+    /// A target is hidden when the number of dragged files its converter can take is below <see cref="ConversionTarget.MinInputs"/>
+    /// or above <see cref="ConversionTarget.MaxInputs"/>. Extension checks only: no file-system access (runs while the wheel is open).
     /// </summary>
     public IReadOnlyList<ConversionTarget> GetTargetsFor(
         IReadOnlyList<string> paths,
@@ -81,15 +94,23 @@ public sealed class FormatRegistry
         }
 
         var kind = FileClassifier.Classify(paths[0]);
-        return paths
-            .Where(p => FileClassifier.Classify(p) == kind)
-            .SelectMany(p => GetTargetsFor(p, disabledTargetIds))
+        var sameKind = paths.Where(p => FileClassifier.Classify(p) == kind).ToList();
+        var snapshot = _snapshot;
+        return sameKind
+            .SelectMany(p => GetTargetsFor(p, disabledTargetIds, int.MaxValue, inputCount: null))
             .DistinctBy(t => t.Id)
+            .Where(t => CountInputs(snapshot, sameKind, t) is var n && n >= t.MinInputs && (t.MaxInputs is not { } max || n <= max))
             .OrderBy(t => t.Priority)
             .ThenBy(t => t.Id, StringComparer.Ordinal)
             .Take(maxCount)
             .ToList();
     }
+
+    // Dragged files this target's converter can take (same checks as the per-file filter, extension only).
+    private static int CountInputs(Snapshot snapshot, IReadOnlyList<string> paths, ConversionTarget target) =>
+        paths.Count(p => FileClassifier.Classify(p) == target.InputKind
+            && !target.IsRedundantFor(FileClassifier.NormalizeExtension(p))
+            && FindConverter(snapshot, FileClassifier.NormalizeExtension(p), target.Id) is not null);
 
     /// <summary>The converter for this file + target, or null if none is available.</summary>
     public IConverter? ResolveConverter(string path, string targetId) =>

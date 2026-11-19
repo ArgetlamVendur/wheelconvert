@@ -29,6 +29,18 @@ public interface IPageOrderPrompt
     Task<IReadOnlyList<int>?> PromptAsync(string pdfPath, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// The user's resize choice (ADR-011 section 5). Exactly one of <paramref name="LongEdge"/>, <paramref name="Percent"/>
+/// or (<paramref name="Width"/> and/or <paramref name="Height"/>) is set.
+/// </summary>
+public sealed record ResizeChoice(int? LongEdge, int? Percent, int? Width, int? Height, bool AllowEnlarge);
+
+/// <summary>Asks the user how to resize images, once per drop (WP-19). Returns null if cancelled.</summary>
+public interface IResizePrompt
+{
+    Task<ResizeChoice?> PromptAsync(IReadOnlyList<string> imagePaths, CancellationToken cancellationToken);
+}
+
 /// <summary>Thrown by <see cref="IPdfPageRenderer"/> for encrypted PDFs (distinct from a real permission error).</summary>
 public sealed class PdfPasswordProtectedException : Exception
 {

@@ -9,7 +9,8 @@ public sealed record SkippedItem(string Path, string Reason);
 public sealed record DropPlan(IReadOnlyList<ConversionRequest> Requests, IReadOnlyList<SkippedItem> Skipped);
 
 /// <summary>
-/// Turns "these N dropped paths onto this segment" into one request per compatible file.
+/// Turns "these N dropped paths onto this segment" into one request per compatible file, or into ONE request for
+/// targets that combine inputs (<see cref="ConversionTarget.CombinesInputs"/>, ADR-011 section 3).
 /// Folders, missing files, our own temp files and files of another kind are skipped with a reason.
 /// Touches the file system (Exists checks), which can stall on offline network shares:
 /// CALL IT OFF THE UI THREAD (Task.Run).
@@ -27,6 +28,7 @@ public static class DropPlanner
         ArgumentNullException.ThrowIfNull(registry);
 
         var requests = new List<ConversionRequest>();
+        var accepted = new List<string>();
         var skipped = new List<SkippedItem>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         // Copy so later changes by the caller can't affect queued requests.
@@ -81,8 +83,33 @@ public static class DropPlanner
             }
             else
             {
-                requests.Add(new ConversionRequest(path, target, opts));
+                accepted.Add(path);
             }
+        }
+
+        if (target.MaxInputs is { } max && accepted.Count > max)
+        {
+            var message = max == 1
+                ? $"Drop one file at a time for {target.Label}."
+                : $"Drop at most {max} files for {target.Label}.";
+            skipped.AddRange(accepted.Select(a => new SkippedItem(a, message)));
+        }
+        else if (target.CombinesInputs)
+        {
+            if (accepted.Count < target.MinInputs)
+            {
+                var message = $"Drop at least {target.MinInputs} files for {target.Label}.";
+                skipped.AddRange(accepted.Select(a => new SkippedItem(a, message)));
+            }
+            else if (accepted.Count > 0)
+            {
+                accepted.Sort(NaturalFileNameComparer.Instance);
+                requests.Add(new ConversionRequest(accepted[0], target, opts, accepted.Count > 1 ? accepted.Skip(1).ToList() : null));
+            }
+        }
+        else
+        {
+            requests.AddRange(accepted.Select(a => new ConversionRequest(a, target, opts)));
         }
 
         return new DropPlan(requests, skipped);
