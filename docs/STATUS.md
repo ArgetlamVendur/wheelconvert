@@ -17,7 +17,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 11 | Integration | DONE | Claude Code (Opus) | Antigravity | PR #2 (b234417) | Merged |
 | 12 | Packaging + release | DONE | Sonnet | Opus | PR #19 | Merged. Reviews: docs/reviews/WP-12-2026-11-17.md (APPROVE after 2 fix rounds). Checkpoint 3 user tests PASS 2026-11-17 (Defender clean, VirusTotal skipped); GO recorded by user. Tag `v0.1.0-rc1` pushed by the user 2026-11-18; draft prerelease check and publishing pending |
 | 13 | Core: multi-input targets | DONE | Sonnet | Opus | PR #24 | Merged. APPROVE (docs/reviews/WP-13-2026-11-19.md); 9 rules revert-checked. `PdfConverterTests` `notYet` list: WP-14/18/20 remove their ID. `DropCoordinator` interaction path is PDF-only: WP-19 must add the resize branch. User tests 9-10 NEEDS USER |
-| 14 | PDF merge | TODO | — | — | — | Pdf project; before WP-20 |
+| 14 | PDF merge | DONE | Sonnet | Opus | PR #28 | Merged. APPROVE (docs/reviews/WP-14-2026-11-19.md); agent tests 1-6 PASS (Pdf 75). User tests 7-9 NEEDS USER (incl. the 10-segment wheel check). Follow-ups: README note (bookmarks/metadata dropped); locked input reports an output error; no test for per-page cancel / zero-page input |
 | 15 | Images → PDF | TODO | — | — | — | Image project; before WP-16 |
 | 16 | Smaller (images, video) | TODO | — | — | — | Image + Media; after WP-21; before WP-19 |
 | 17 | One-click FFmpeg install | TODO (needs ADR-012 Accepted after the by-hand winget check) | — | — | — | After WP-21; independent of WP-13 |
