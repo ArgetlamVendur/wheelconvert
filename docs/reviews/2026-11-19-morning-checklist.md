@@ -14,7 +14,7 @@ Every user ("NEEDS USER") test from the overnight run, in order. Nothing was mer
 Merge **#22 first** (docs only: ADR-011 and ADR-013 Accepted). #24 and #25 are stacked on it. Then merge #23, #24 and #25 in any order. On each PR: **Files changed → Review changes → Approve**, then **Squash and merge**. Merge a PR only if its review file in `docs/reviews/` says APPROVE. Review status at handoff:
 - #23 (WP-22): APPROVE.
 - #24 (WP-13): APPROVE.
-- #25 (WP-21): **the review was still running at 07:28.** Check for `docs/reviews/WP-21-2026-11-19.md` on that branch before merging.
+- #25 (WP-21): APPROVE (arrived 07:30).
 
 ---
 

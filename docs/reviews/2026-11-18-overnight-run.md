@@ -18,7 +18,7 @@ Authorisation: user, 2026-11-18 (overnight-run prompt). ADR-011 and ADR-013 acce
 | 06:59 | 13, 21, 22 | Dispatched three fresh Opus reviewers (PR number + WP file + AGENTS + checklist only). | | | **Decision:** reviews are not "new WPs", so allowed after 06:30. |
 | 07:01 | 22 | Review: **APPROVE** (`docs/reviews/WP-22-2026-11-19.md`), 4 non-blocking findings: no test for the shutdown timeout; the OCE filter at `ConversionJobQueue.cs:211`; acceptance row 4 = "PARTIAL" (CA2027 can't be raised on SDK 8); ProductVersion carries `+commit`. | #23 | reviewed cd64d24 → head 9ce0dc9 | Merge conditions not all met anyway: row 4 isn't PASS. |
 | 07:26 | 13 | Review: **APPROVE** (`docs/reviews/WP-13-2026-11-19.md`). Nine rules reverted one at a time; each made a test fail. Findings: (1) `PdfConverterTests.cs:396-398` edited outside Owns: needed, disclosed, **acknowledged by orchestrator**; (2) `CONTRACTS.md:53` sample falls back to `.png` instead of the source extension (contradicts ADR-011 §4) — one-line docs fix, do it in WP-16 or at rebase; (3) `DropCoordinator.cs:74-92` interaction path still PDF-only — WP-19 must extend; (4) `with { MinInputs = … }` won't compile — acceptable. | #24 | reviewed 79d7dfa → head 9037fed | |
-| 07:27 | 21 | Review still running at handoff time. | #25 | aa9e7ae | **Pending.** Look for `docs/reviews/WP-21-2026-11-19.md` on the PR branch; if absent, re-run a fresh Opus review. |
+| 07:30 | 21 | Review: **APPROVE** (`docs/reviews/WP-21-2026-11-19.md`). Every revert check either made a test fail or was judged by reading. Findings, none blocking:<br>(1) `MediaConverter.cs:229`: a cut stderr half-line could keep a partial path. Drop it as `MapFailure` does.<br>(2) Acceptance test 2 (HLS) passes even without the whitelist; FFmpeg 9.0.2 refuses HLS by extension. The ffconcat test does cover it.<br>(3) Three `FileLog` instances write one file. Needs an ADR to inject the app log; follow-up.<br>(4) `-protocol_whitelist` is covered by argument tests only. | #25 | reviewed aa9e7ae → head 8ae19e8 | |
 
 ## Handoff (07:28)
 
@@ -27,7 +27,7 @@ Authorisation: user, 2026-11-18 (overnight-run prompt). ADR-011 and ADR-013 acce
   - #22 (docs: ADR-011/013 Accepted). Merge **first**: #24 and #25 are stacked on it.
   - #23 WP-22 (APPROVE).
   - #24 WP-13 (APPROVE).
-  - #25 WP-21 (review pending).
+  - #25 WP-21 (APPROVE).
   - CI is green on all four.
 - **Blocked:** none. Not started: WP-14, 15, 16, 18, 19, 20 (they need WP-13 merged) and WP-17 (ADR-012 Proposed).
 - **Resume:**
