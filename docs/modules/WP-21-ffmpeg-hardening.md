@@ -41,7 +41,7 @@ WheelConvert hands files from anywhere (downloads, email attachments) to FFmpeg.
 | 6 | Agent | `IsProgressLine("error=foo")`, `IsProgressLine("speed=1.2x")` | false, true | PASS |
 | 7 | Agent | Failed FFmpeg run (fake runner, 50 stderr lines incl. progress) | Log gets 20 non-progress lines, file names only, no full paths | PASS |
 | 8 | Agent | Failed Magick conversion (corrupt PNG) | Log line with exception type + message, no stack trace, no full path | PASS |
-| 9 | User | Convert a phone video and an MP3 from `wc-test` | Same results as before | NEEDS USER |
+| 9 | User | Convert a phone video and an MP3 from `wc-test` | Same results as before | PASS (user, 2026-11-19) |
 
 ## Review focus
 No path from a dropped file to a network connection or a second local file; whitelist names checked against real FFmpeg output; log contains no full paths.
