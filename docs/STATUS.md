@@ -17,7 +17,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 11 | Integration | DONE | Claude Code (Opus) | Antigravity | PR #2 (b234417) | Merged |
 | 12 | Packaging + release | DONE | Sonnet | Opus | PR #19 | Merged. Reviews: docs/reviews/WP-12-2026-11-17.md (APPROVE after 2 fix rounds). Checkpoint 3 user tests PASS 2026-11-17 (Defender clean, VirusTotal skipped); GO recorded by user. Tag `v0.1.0-rc1` pushed by the user 2026-11-18; draft prerelease check and publishing pending |
 | 13 | Core: multi-input targets | REVIEW | Sonnet | — | wp-13-core-multi-input / PR #24 (stacked on #22) | Blocks 14, 15, 16, 18, 19, 20. Adds `MaxInputs`: 2+ PDFs hide 5 single-file targets |
-| 14 | PDF merge | IN PROGRESS (Sonnet) | Sonnet | — | wp-14-pdf-merge | Pdf project; before WP-20 |
+| 14 | PDF merge | REVIEW | Sonnet | — | wp-14-pdf-merge | Agent tests 1-6 PASS (Pdf 75 tests); user tests 7-9 pending (incl. the 10-segment wheel check). Before WP-20 |
 | 15 | Images → PDF | TODO | — | — | — | Image project; before WP-16 |
 | 16 | Smaller (images, video) | TODO | — | — | — | Image + Media; after WP-21; before WP-19 |
 | 17 | One-click FFmpeg install | TODO (needs ADR-012 Accepted after the by-hand winget check) | — | — | — | After WP-21; independent of WP-13 |

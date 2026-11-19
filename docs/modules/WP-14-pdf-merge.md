@@ -26,12 +26,12 @@ Select two or more PDFs, drag, drop on **Merge** → one PDF with all pages, fil
 ## Acceptance tests
 | # | Who | Test | Expected | Result |
 |---|---|---|---|---|
-| 1 | Agent | Merge 2-page + 3-page (generated) | 5 pages, in order, sources unchanged (hash) | |
-| 2 | Agent | Inputs `doc 10.pdf`, `doc 2.pdf` (via DropPlanner) | `doc 2` pages first, output `doc 2 (merged).pdf` | |
-| 3 | Agent | One input encrypted | `PasswordProtected` naming it, no temp left | |
-| 4 | Agent | One input garbage bytes | `CorruptInput` naming it, no temp left | |
-| 5 | Agent | Cancel during a 3 × 100-page merge | `OperationCanceledException`, no temp left | |
-| 6 | Agent | Inputs in two different folders | Output in first file's folder only | |
+| 1 | Agent | Merge 2-page + 3-page (generated) | 5 pages, in order, sources unchanged (hash) | PASS (PdfMergerTests) |
+| 2 | Agent | Inputs `doc 10.pdf`, `doc 2.pdf` (via DropPlanner) | `doc 2` pages first, output `doc 2 (merged).pdf` | PASS (PdfMergerTests) |
+| 3 | Agent | One input encrypted | `PasswordProtected` naming it, no temp left | PASS (PdfMergerTests) |
+| 4 | Agent | One input garbage bytes | `CorruptInput` naming it, no temp left | PASS (PdfMergerTests) |
+| 5 | Agent | Cancel during a 3 × 100-page merge | `OperationCanceledException`, no temp left | PASS (PdfMergerTests) |
+| 6 | Agent | Inputs in two different folders | Output in first file's folder only | PASS (PdfMergerTests) |
 | 7 | User | In `wc-test`, select 3 PDFs, Shift-drag, drop on Merge | One merged PDF next to the first, opens in Edge | NEEDS USER |
 | 8 | User | Drag a single PDF | No Merge segment | NEEDS USER |
 | 9 | User | Wheel readability: drag 1 PDF and hit Reverse, then Rotate, 5 times each; drag 3 PDFs and hit Merge 5 times | 15/15 land on the intended segment. Fewer → record it; a later ADR moves the least-used PDF targets (ADR-011 §8) | NEEDS USER |
