@@ -29,7 +29,7 @@
       },
       "SkiaSharp": {
         "type": "Direct",
-        "requested": "[4.150.1, )",
+        "requested": "[4.150.1, 4.150.1]",
         "resolved": "4.150.1",
         "contentHash": "5v3T8X1N62Dp+AkPO70GNBNS/NRBPGMOTiN+Prg33sZAcm/Ug3YOAH+3RTj/jxJV8NGTJs2idGpC2Qdae2mGLQ==",
         "dependencies": {
