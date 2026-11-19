@@ -22,7 +22,7 @@ public static class ReviewRegressionTests
         var pdf = dir.File("doc.pdf");
         var registry = new FormatRegistry([new FakeConverter("pdf", AllPdfTargets)], new NullLog());
 
-        Assert.Equal(8, registry.GetTargetsFor(pdf).Count, "all 8 PDF targets");
+        Assert.Equal(AllPdfTargets.Length - 1, registry.GetTargetsFor(pdf).Count, "every PDF target except Merge (needs 2 PDFs)");
         var plan = DropPlanner.Plan([pdf], TargetCatalog.PdfRotate90, registry);
         Assert.Equal(1, plan.Requests.Count);
         Assert.Equal(0, plan.Skipped.Count);

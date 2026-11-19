@@ -11,6 +11,10 @@ public static class OutputLabels
     public const string OddPages = "odd pages";
     public const string EvenPages = "even pages";
     public const string Audio = "audio";
+    public const string Combined = "combined";
+    public const string Merged = "merged";
+    public const string Smaller = "smaller";
+    public const string Resized = "resized";
 
     /// <summary>"page 3", zero-padded to the width of <paramref name="total"/> ("page 03" of 40) so files sort correctly.</summary>
     public static string Page(int pageNumber, int total) => "page " + Pad(pageNumber, total);

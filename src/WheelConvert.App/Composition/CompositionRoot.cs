@@ -44,7 +44,7 @@ public static class CompositionRoot
         var tray = new TrayIcon(dispatcher, CurrentSettings, registry);
         var wheel = new WheelWindow();
         var clipboard = new ClipboardService(dispatcher);
-        var coordinator = new DropCoordinator(registry, queue, tray, clipboard, new PageOrderPrompt(pdfRenderer, log), CurrentSettings, dispatcher);
+        var coordinator = new DropCoordinator(registry, queue, tray, clipboard, new PageOrderPrompt(pdfRenderer, log), new NotImplementedResizePrompt(), CurrentSettings, dispatcher);
         wheel.TargetsProvider = coordinator.GetTargets;
         var triggers = new TriggerManager(wheel, tray, CurrentSettings, log, dispatcher);
         var recentFolders = new RecentFolders(RecentFolders.DefaultPath, log);

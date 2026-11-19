@@ -15,6 +15,8 @@ Source of truth is the code in `src/WheelConvert.Core/Contracts/` and `src/Wheel
 | `CheckHealth()` | Fast (aim < 50 ms; a one-time native library load or a PATH on network drives may take longer — the app always runs health checks off the UI thread, at start-up and on "Check again", never while the wheel is open), no user-file conversion. Stubs return `ConverterHealth.NotImplemented`, which hides their targets. Missing tool → `ConverterHealth.Missing("…how to fix…")`. |
 | `ConvertAsync(...)` | See safety rules S1–S6. Returns a `ConversionResult`; never throws except `OperationCanceledException`. Must be safe to run concurrently for different requests. `IOutputWriter.Commit` can throw `IOException`, `UnauthorizedAccessException`, `InvalidOperationException`, `FileNotFoundException`: **catch them and return `Fail(OutputFailed, …)`**. Report progress 0..1 through the `IProgress<double>` when you can (the queue throttles it). |
 | Output label | Plain format conversions use `request.OutputLabel` (from `OptionKeys.OutputLabel`, default "converted"). Operations use the fixed labels in C2. |
+| Several inputs (ADR-011) | A target with `CombinesInputs` gets **one** request: `SourcePath` is the first file, `AdditionalSourcePaths` the rest; read them all through `request.AllSourcePaths`. Output is named after and written next to `SourcePath`. A failure names the file (`"Couldn't read scan 3.jpg."`). |
+| `OutputExtension = null` (ADR-011) | With `ProducesText = false` it means "the converter chooses the extension" (normally the source's own: `image.smaller`, `image.resize`). Never write `OutputExtension!`: handle null and pass the chosen extension to `CreateTempPath`/`Commit`. |
 
 **Result rules**
 - File output: `ConversionResult.Ok(paths)` with every committed path, in a sensible order (page 1 first).
@@ -41,14 +43,14 @@ Source of truth is the code in `src/WheelConvert.Core/Contracts/` and `src/Wheel
 - **S3.** Publish **only** via `IOutputWriter.Commit(temp, source, ext, label)`. It never overwrites; it adds " 2", " 3"… to the label.
 - **S4.** On every failure or cancellation path, call `IOutputWriter.Discard(temp)` for each temp file (use `try/finally`).
 - **S5.** Multi-output operations (split, PDF→images) commit each piece with its own label (`"page 3"`, `"part 1"`). If one piece fails, discard the remaining temps, keep the pieces already committed, and return `Fail` with a message naming how many were written.
-- **S6.** Never write anywhere except the source's folder. If that folder is read-only, return `OutputFailed`.
+- **S6.** Never write anywhere except the source's folder (for a combining request: the folder of `SourcePath`, the first file; the other inputs are only ever opened read-only, S1). If that folder is read-only, return `OutputFailed`.
 
 The writer enforces what it can: it only commits/discards temps **it issued**, only into the **same folder** as the source, and the queue gives every job its own writer scope that **discards any uncommitted temp when the job ends** (even if the converter crashed). Converters still follow S4 themselves.
 
 Reference pattern (single output):
 
 ```csharp
-var ext = request.Target.OutputExtension!;
+var ext = request.Target.OutputExtension ?? ".png"; // null = converter chooses (ADR-011 s4); never use `!`
 var temp = output.CreateTempPath(request.SourcePath, ext);
 var committed = false;
 try
@@ -82,6 +84,12 @@ Labels used by modules (so names stay consistent):
 | `pdf.reorder` | `reordered` | `doc (reordered).pdf` |
 | `pdf.to-images` | `page N` | `doc (page 3).png` |
 | `video.extract-mp3` | `audio` | `clip (audio).mp3` |
+| `image.to-pdf`, one image | value of `AppSettings.OutputLabel` (default `converted`) | `photo (converted).pdf` |
+| `image.to-pdf`, several images | `combined` (`OutputLabels.Combined`) | `scan 01 (combined).pdf` |
+| `pdf.merge` | `merged` (`OutputLabels.Merged`) | `report (merged).pdf` |
+| `image.smaller`, `video.smaller`, `pdf.smaller` | `smaller` (`OutputLabels.Smaller`) | `photo (smaller).jpg` |
+| `image.resize` | `resized` (`OutputLabels.Resized`) | `photo (resized).png` |
+| `pdf.to-docx` | value of `AppSettings.OutputLabel` | `doc (converted).docx` |
 
 `N` is 1-based and zero-padded to the page count's width (`page 03` for a 40-page PDF) so files sort correctly.
 
@@ -97,6 +105,8 @@ Labels used by modules (so names stay consistent):
 
 - Shared type: `src/WheelConvert.App/Wheel/IWheelView.cs` (`ShowAt`, `HideWheel`, `IsOpen`, `TargetsProvider`, `Dropped`). Changing it needs both WP-04 and WP-11 to agree.
 - Segments for a multi-file drag come from `FormatRegistry.GetTargetsFor(paths, …)`: the **first** file's kind decides; a target shows if any dragged file of that kind can use it. Other files are skipped by `DropPlanner` with a reason.
+- A target is also hidden when the number of dragged files it can take is below `ConversionTarget.MinInputs` or above `MaxInputs` (extension checks only, no I/O). So `pdf.merge` (`MinInputs: 2`) shows only for 2+ PDFs, and the five single-file PDF targets (`MaxInputs: 1`) disappear for 2+ PDFs.
+- **Combining targets** (`CombinesInputs`: `image.to-pdf`, `pdf.merge`): `DropPlanner` applies the per-file filters, natural-sorts the accepted files by name (`NaturalFileNameComparer`, ties by full path) and makes **one** request. Fewer than `MinInputs` → no request, files skipped with "Drop at least N files for <Label>.". More than `MaxInputs` (any target) → no request, "Drop one file at a time for <Label>." (or "Drop at most N files for <Label>."). Images → PDF always combines.
 - The wheel reports a drop as `(IReadOnlyList<string> paths, ConversionTarget target)`.
 - **Every** `DragEnter`, `DragOver` and `Drop` handler sets `e.Effects = DragDropEffects.Copy` (or `None` for a cancelled drop). **Never `Move`.** Set it first, in a `try/finally`.
 - The wheel never opens dropped files; it only reads paths.
@@ -112,7 +122,8 @@ Labels used by modules (so names stay consistent):
 
 ## C6. Interaction targets (`RequiresInteraction = true`)
 
-- Currently only `pdf.reorder`. WP-11 calls `IPageOrderPrompt.PromptAsync(path)` **before** enqueueing.
+- `pdf.reorder` and `image.resize` (ADR-011 section 5). `image.resize`: the app calls `IResizePrompt.PromptAsync(imagePaths)` **once per drop** (null = cancelled), and writes the `ResizeChoice` into `OptionKeys.ResizeLongEdge` / `ResizePercent` / `ResizeWidth` / `ResizeHeight` / `ResizeAllowEnlarge` ("true"/"false") for every file; exactly one of long edge, percent or width/height is set. Until WP-19 the prompt is a stub returning null and no converter offers `image.resize`.
+- `pdf.reorder`: WP-11 calls `IPageOrderPrompt.PromptAsync(path)` **before** enqueueing.
 - Result goes into `Options[OptionKeys.PageOrder]` as comma-separated 1-based numbers, e.g. `"3,1,2"`.
 - The converter validates it: each number in `1..pageCount`, **no duplicates**, **at least one page**. A subset is allowed and means "leave the other pages out". The identity order (`1,2,…,n`) is allowed and produces a copy. Empty, out-of-range or duplicate → `Fail(Unsupported, "Invalid page order.")`.
 
@@ -127,6 +138,7 @@ Labels used by modules (so names stay consistent):
 - Defined only in `TargetCatalog`. **Never rename an ID** (settings store them). To retire one, keep it in the catalog and stop implementing it.
 - Labels ≤ 8 characters (they must fit on a wheel segment).
 - `IsFormatChange: false` for operations that keep the format (PDF → PDF); those are never hidden as "already that format".
+- v0.2 additions (ADR-011): `image.to-pdf` "PDF", `image.smaller` "Smaller", `image.resize` "Resize", `video.smaller` "Smaller", `pdf.merge` "Merge", `pdf.to-docx` "Word", `pdf.smaller` "Smaller". The five single-file PDF targets (`pdf.reorder`, `pdf.split-half`, `pdf.extract-odd`, `pdf.extract-even`, `pdf.reverse`) have `MaxInputs: 1`. New `ConversionTarget` parameters (all optional): `CombinesInputs`, `MinInputs`, `MaxInputs`.
 
 ## C9. External processes
 
