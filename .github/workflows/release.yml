@@ -104,7 +104,12 @@ jobs:
             @('microsoft.extensions.logging.abstractions/8.0.3/LICENSE.TXT',                        'Microsoft.Extensions.Logging.Abstractions-8.0.3-LICENSE.txt'),
             @('microsoft.extensions.logging.abstractions/8.0.3/THIRD-PARTY-NOTICES.TXT',            'Microsoft.Extensions.Logging.Abstractions-8.0.3-THIRD-PARTY-NOTICES.txt'),
             @('system.security.cryptography.pkcs/8.0.1/LICENSE.TXT',                                'System.Security.Cryptography.Pkcs-8.0.1-LICENSE.txt'),
-            @('system.security.cryptography.pkcs/8.0.1/THIRD-PARTY-NOTICES.TXT',                    'System.Security.Cryptography.Pkcs-8.0.1-THIRD-PARTY-NOTICES.txt')
+            @('system.security.cryptography.pkcs/8.0.1/THIRD-PARTY-NOTICES.TXT',                    'System.Security.Cryptography.Pkcs-8.0.1-THIRD-PARTY-NOTICES.txt'),
+            @('pdfpig/0.1.16/pdfpig.nuspec',                                                    'PdfPig-0.1.16.nuspec'),
+            @('documentformat.openxml/3.5.1/documentformat.openxml.nuspec',                     'DocumentFormat.OpenXml-3.5.1.nuspec'),
+            @('documentformat.openxml.framework/3.5.1/documentformat.openxml.framework.nuspec', 'DocumentFormat.OpenXml.Framework-3.5.1.nuspec'),
+            @('system.io.packaging/8.0.1/LICENSE.TXT',                                          'System.IO.Packaging-8.0.1-LICENSE.txt'),
+            @('system.io.packaging/8.0.1/THIRD-PARTY-NOTICES.TXT',                              'System.IO.Packaging-8.0.1-THIRD-PARTY-NOTICES.txt')
           )
           foreach ($n in $notices) {
             $src = Join-Path $pk $n[0]

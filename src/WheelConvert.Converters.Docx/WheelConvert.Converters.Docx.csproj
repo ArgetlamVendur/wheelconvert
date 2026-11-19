@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- WP-18 PDF to Word (text only). Spec: docs/modules/WP-18-pdf-to-word.md -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>WheelConvert.Converters.Docx</RootNamespace>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WheelConvert.Core\WheelConvert.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="WheelConvert.Converters.Docx.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml" Version="[3.5.1]" />
+    <PackageReference Include="PdfPig" Version="[0.1.16]" />
+  </ItemGroup>
+</Project>

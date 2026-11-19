@@ -2,6 +2,7 @@ using System.Windows.Threading;
 using WheelConvert.App.Pdf;
 using WheelConvert.App.Tray;
 using WheelConvert.App.Wheel;
+using WheelConvert.Converters.Docx;
 using WheelConvert.Converters.Image;
 using WheelConvert.Converters.Media;
 using WheelConvert.Converters.Pdf;
@@ -57,6 +58,7 @@ public static class CompositionRoot
         new ImageConverter(),
         new MediaConverter(() => settings().FfmpegPath),
         new PdfConverter(),
+        new DocxConverter(),
         new QrConverter(),
     ];
 }

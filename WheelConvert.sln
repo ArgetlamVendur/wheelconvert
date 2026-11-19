@@ -29,6 +29,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WheelConvert.Converters.Med
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WheelConvert.Converters.Image.Tests", "tests\WheelConvert.Converters.Image.Tests\WheelConvert.Converters.Image.Tests.csproj", "{47FCEB95-97E0-4557-AC43-45D75577F3D2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WheelConvert.Converters.Docx", "src\WheelConvert.Converters.Docx\WheelConvert.Converters.Docx.csproj", "{8458ECBC-4097-4CF9-97CF-BC670CABE634}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WheelConvert.Converters.Docx.Tests", "tests\WheelConvert.Converters.Docx.Tests\WheelConvert.Converters.Docx.Tests.csproj", "{2B477A24-6752-4A23-BA99-AF82D95D31F1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -90,6 +94,14 @@ Global
 		{47FCEB95-97E0-4557-AC43-45D75577F3D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{47FCEB95-97E0-4557-AC43-45D75577F3D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{47FCEB95-97E0-4557-AC43-45D75577F3D2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8458ECBC-4097-4CF9-97CF-BC670CABE634}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8458ECBC-4097-4CF9-97CF-BC670CABE634}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8458ECBC-4097-4CF9-97CF-BC670CABE634}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8458ECBC-4097-4CF9-97CF-BC670CABE634}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2B477A24-6752-4A23-BA99-AF82D95D31F1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B477A24-6752-4A23-BA99-AF82D95D31F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B477A24-6752-4A23-BA99-AF82D95D31F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B477A24-6752-4A23-BA99-AF82D95D31F1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{B22FA0B2-F3D3-4DFC-BEE1-2E36CC5A65D8} = {B3F7732D-345C-4FC7-A92B-B6E75EE2FD3E}
@@ -103,5 +115,7 @@ Global
 		{801D2FB4-31F0-4C90-B011-3C172F7584BA} = {1CB50903-0EAE-4834-9522-F12124A44901}
 		{19B5E52E-30D0-4BB9-B3E6-5881C4EEAA76} = {1CB50903-0EAE-4834-9522-F12124A44901}
 		{47FCEB95-97E0-4557-AC43-45D75577F3D2} = {1CB50903-0EAE-4834-9522-F12124A44901}
+		{8458ECBC-4097-4CF9-97CF-BC670CABE634} = {B3F7732D-345C-4FC7-A92B-B6E75EE2FD3E}
+		{2B477A24-6752-4A23-BA99-AF82D95D31F1} = {1CB50903-0EAE-4834-9522-F12124A44901}
 	EndGlobalSection
 EndGlobal
