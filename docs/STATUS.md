@@ -24,7 +24,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 18 | PDF → Word (text only) | TODO | — | — | — | New Docx project |
 | 19 | Image resize | TODO | — | — | — | Image + App dialog |
 | 20 | Smaller PDF | TODO | — | — | — | Pdf project; no Ghostscript; direct SkiaSharp pin |
-| 21 | FFmpeg hardening + error log | DONE | Sonnet | Opus | PR #25 | Merged. APPROVE (docs/reviews/WP-21-2026-11-19.md). Test 9 PASS (user, 2026-11-19). Follow-ups (log path fragment after truncation; three loggers on one file): branch chore-log-followups. HLS test passes even without the whitelist on FFmpeg 9.0.2 (ffconcat test covers it) |
+| 21 | FFmpeg hardening + error log | DONE | Sonnet | Opus | PR #25 | Merged. APPROVE (docs/reviews/WP-21-2026-11-19.md). Test 9 PASS (user, 2026-11-19). Log follow-ups (path fragment after truncation; three loggers on one file): fixed in PR #29 (APPROVE, docs/reviews/chore-log-followups-2026-11-19.md). HLS test passes even without the whitelist on FFmpeg 9.0.2 (ffconcat test covers it) |
 | 22 | Release hardening + version from tag | DONE | Sonnet | Opus | PR #23 | Merged. APPROVE (docs/reviews/WP-22-2026-11-19.md). Follow-ups: no test for the job queue exit timeout; acceptance row 4 not testable on .NET 8 SDK; ProductVersion carries `+commit` |
 
 From 2026-11-10 only Claude models are used: the reviewer must be a different model from the builder, in a fresh session (AGENTS.md §2). From 2026-11-12 the remaining work runs as an orchestrated run (AGENTS.md §9).
