@@ -172,6 +172,7 @@
         "dependencies": {
           "PDFsharp": "[6.2.4, 6.2.4]",
           "PDFtoImage": "[5.4.0, )",
+          "SkiaSharp": "[4.150.1, )",
           "WheelConvert.Core": "[0.1.0, )"
         }
       },

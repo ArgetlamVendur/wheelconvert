@@ -3,6 +3,7 @@ using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
 using WheelConvert.Core.Contracts;
 using WheelConvert.Core.Formats;
+using WheelConvert.Core.Infrastructure;
 using WheelConvert.Core.Output;
 
 namespace WheelConvert.Converters.Pdf;
@@ -20,13 +21,22 @@ public sealed class PdfConverter : IConverter
     // Only success is cached: native libraries load once per process, and a failure should be retried on "Check again".
     private static volatile bool _healthy;
 
+    private readonly ILog _log;
+
+    public PdfConverter()
+        : this(new FileLog(FileLog.DefaultPath)) // the constructor called in CompositionRoot has no ILog (ADR-013), as in MediaConverter
+    {
+    }
+
+    internal PdfConverter(ILog log) => _log = log ?? throw new ArgumentNullException(nameof(log));
+
     public string Id => "pdf";
 
     public IReadOnlyCollection<string> SupportedTargetIds { get; } =
     [
         TargetCatalog.PdfSplitPages.Id, TargetCatalog.PdfToImages.Id, TargetCatalog.PdfRotate90.Id,
         TargetCatalog.PdfReorder.Id, TargetCatalog.PdfSplitHalf.Id, TargetCatalog.PdfExtractOdd.Id,
-        TargetCatalog.PdfExtractEven.Id, TargetCatalog.PdfReverse.Id, TargetCatalog.PdfMerge.Id,
+        TargetCatalog.PdfExtractEven.Id, TargetCatalog.PdfReverse.Id, TargetCatalog.PdfMerge.Id, TargetCatalog.PdfSmaller.Id,
     ];
 
     public bool CanConvert(string sourceExtension, string targetId) =>
@@ -93,6 +103,13 @@ public sealed class PdfConverter : IConverter
                 return PdfiumPlatform.IsSupported
                     ? await ToImagesAsync(request, output, progress, cancellationToken).ConfigureAwait(false)
                     : ConversionResult.Fail(ConversionError.Unsupported, "PDF to images isn't available on this system.");
+            }
+
+            if (request.Target.Id == TargetCatalog.PdfSmaller.Id)
+            {
+                return PdfiumPlatform.IsSupported
+                    ? await new PdfShrinker(_log).ShrinkAsync(request, output, progress, cancellationToken).ConfigureAwait(false)
+                    : ConversionResult.Fail(ConversionError.Unsupported, "Smaller PDF isn't available on this system.");
             }
 
             return await Task.Run(() => EditPagesAsync(request, output, progress, cancellationToken), cancellationToken)

@@ -34,13 +34,13 @@ It will not shrink every PDF; when it can't, it says so.
 ## Acceptance tests
 | # | Who | Test | Expected | Result |
 |---|---|---|---|---|
-| 1 | Agent | Generated PDF with three 4000 × 3000 JPEG pages | ≥ 50 % smaller; renders; pages unchanged in count | |
-| 2 | Agent | Text-only generated PDF | `NoResult` "Couldn't make this PDF smaller." | |
-| 3 | Agent | PDF whose only image is CMYK | `NoResult` with the "format" message | |
-| 4 | Agent | Shared image on 10 pages | Replaced once; all 10 pages render | |
-| 5 | Agent | Source unchanged (hash); no temp A or B left on every failure path | Pass | |
-| 6 | Agent | PDF with a link and a bookmark | Both still present | |
-| 7 | Agent | Encrypted / garbage / cancel | `PasswordProtected` / `CorruptInput` / no temps | |
+| 1 | Agent | Generated PDF with three 4000 × 3000 JPEG pages | ≥ 50 % smaller; renders; pages unchanged in count | PASS (4000x3000 to 2000x1500 per page; 3 pages; renders) |
+| 2 | Agent | Text-only generated PDF | `NoResult` "Couldn't make this PDF smaller." | PASS |
+| 3 | Agent | PDF whose only image is CMYK | `NoResult` with the "format" message | PASS (dictionary declares DeviceCMYK; skipped on that) |
+| 4 | Agent | Shared image on 10 pages | Replaced once; all 10 pages render | PASS (stats: Replaced = 1; 10 pages render) |
+| 5 | Agent | Source unchanged (hash); no temp A or B left on every failure path | Pass | PASS (hash and temp checks in every failure test) |
+| 6 | Agent | PDF with a link and a bookmark | Both still present | PASS |
+| 7 | Agent | Encrypted / garbage / cancel | `PasswordProtected` / `CorruptInput` / no temps | PASS (incl. owner-password-only) |
 | 8 | User | A phone-scan PDF from `wc-test` → Smaller | Much smaller; still readable at 100 % zoom | NEEDS USER |
 | 9 | User | Upload it to a portal with a size limit | Accepted | NEEDS USER |
 
