@@ -10,5 +10,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="15.0.0" />
+    <!-- Exact pin: PDFsharp 6.5.0+ is AGPL-3.0, banned by ADR-005. 6.2.4 is the last MIT release (ADR-010). -->
+    <PackageReference Include="PDFsharp" Version="[6.2.4]" />
   </ItemGroup>
 </Project>
