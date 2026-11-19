@@ -13,4 +13,6 @@ Build `main` (`dotnet build WheelConvert.sln -c Release`) and start the app as u
 | 7 | 13 (tests 9–10) | Multi-file wheel | Drag 2 PDFs; then drag 1 PDF + 1 JPG | 2 PDFs: Split, Halves, Odd, Even, Reverse and Reorder are hidden. PDF + JPG: no Merge | |
 | 8 | log chore | Log has no folders | Rename a `.txt` copy to `.jpg`, drop it on **PNG**, open `%LOCALAPPDATA%\WheelConvert\wheelconvert.log` | Last line names only the file, no folder path | |
 
-Not testable yet (not merged): WP-18 PDF → Word (#31; needs the licence files, steps in `docs/reviews/WP-18-2026-11-19-rereview.md`), WP-20 Smaller PDF (#32), WP-16, WP-19.
+| 9 | 16 (rows 3, 9) | **HEIC + Smaller (PR #34, before merging it)** | Check out branch `wp-16-smaller`, build, run. Shift-drag an iPhone HEIC photo, drop on **Smaller**; then a phone video, drop on **Smaller** | `photo (smaller).jpg`, upright, much smaller; `clip (smaller).mp4`, short edge ≤ 720, plays in Photos. If both pass, merge #34 | |
+
+Not testable yet (not merged): WP-18 PDF → Word (#31; needs the licence files, steps in `docs/reviews/WP-18-2026-11-19-rereview.md`), WP-20 Smaller PDF (#32, BLOCKED after 2 fix rounds), WP-19.
