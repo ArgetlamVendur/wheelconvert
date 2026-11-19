@@ -20,6 +20,7 @@ internal sealed class PdfShrinker(ILog log, Func<string, CancellationToken, Task
     internal const int MaxLongEdge = 2000;
     internal const int JpegQuality = 70;
     private const double RequiredSaving = 0.10;
+    private const string SourceUnreadableMessage = "Couldn't open this PDF. Another app may be using it.";
     private const string NoResultMessage = "Couldn't make this PDF smaller.";
     private const string FormatMessage = "Couldn't make this PDF smaller: its images use a format this app can't shrink yet.";
 
@@ -54,7 +55,7 @@ internal sealed class PdfShrinker(ILog log, Func<string, CancellationToken, Task
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                return ConversionResult.Fail(ConversionError.Unknown, "Couldn't open this PDF. Another app may be using it.");
+                return ConversionResult.Fail(ConversionError.Unknown, SourceUnreadableMessage);
             }
 
             long sourceLength;
@@ -64,7 +65,28 @@ internal sealed class PdfShrinker(ILog log, Func<string, CancellationToken, Task
 
                 // CreateTempPath only picks a name, so CreateNew fails loudly if a temp name were ever reused.
                 using var to = new FileStream(tempA, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                await from.CopyToAsync(to, cancellationToken).ConfigureAwait(false);
+
+                // Copied by hand so a failed read (source side) is told apart from a failed write (output side).
+                var buffer = new byte[81920];
+                while (true)
+                {
+                    int read;
+                    try
+                    {
+                        read = await from.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        return ConversionResult.Fail(ConversionError.Unknown, SourceUnreadableMessage);
+                    }
+
+                    if (read == 0)
+                    {
+                        break;
+                    }
+
+                    await to.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                }
             }
 
             ConversionResult? failure;
@@ -89,10 +111,14 @@ internal sealed class PdfShrinker(ILog log, Func<string, CancellationToken, Task
                 for (var p = 0; p < document.PageCount; p++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    _ = document.Pages[p].Contents.Elements.Count;
+                    var page = document.Pages[p];
+                    if (HasDecodableContents(page))
+                    {
+                        _ = page.Contents.Elements.Count;
+                    }
                 }
 
-                using var stream = new FileStream(tempB, FileMode.CreateNew,FileAccess.Write, FileShare.None);
+                using var stream = new FileStream(tempB, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                 document.Save(stream);
             }
 
@@ -162,6 +188,44 @@ internal sealed class PdfShrinker(ILog log, Func<string, CancellationToken, Task
         {
             // Logging must never change the conversion result.
         }
+    }
+
+    /// <summary>
+    /// True when every content stream of the page is unfiltered or Flate-encoded. Wrapping a page's contents decodes them, and
+    /// PDFsharp 6.2.4 throws for filters it doesn't implement (for example RunLengthDecode): such pages are left untouched.
+    /// </summary>
+    private static bool HasDecodableContents(PdfPage page)
+    {
+        var contents = Resolve(page.Elements["/Contents"]);
+        var streams = contents switch
+        {
+            PdfArray array => array.Elements.Select(Resolve).ToList(),
+            null => [],
+            _ => new List<PdfItem?> { contents },
+        };
+
+        foreach (var item in streams)
+        {
+            if (item is not PdfDictionary { Stream: not null } stream)
+            {
+                return false;
+            }
+
+            var filter = Resolve(stream.Elements["/Filter"]);
+            var names = filter switch
+            {
+                null => [],
+                PdfName name => new List<string?> { name.Value },
+                PdfArray array => array.Elements.Select(e => (Resolve(e) as PdfName)?.Value).ToList(),
+                _ => new List<string?> { null },
+            };
+            if (names.Any(n => n != "/FlateDecode"))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static PdfDocument? OpenForEdit(string path, out ConversionResult? failure)

@@ -340,6 +340,46 @@ public sealed class PdfShrinkerTests : IDisposable
         Assert.True(line.Length <= 500);
     }
 
+    [Fact]
+    public async Task Shrink_LongRenderErrorMessage_LogLineIsCutAt500Characters()
+    {
+        var source = BigScan("long.pdf");
+        var shrinker = new PdfShrinker(_log, (_, _) => throw new InvalidDataException(new string('x', 2000)));
+
+        await shrinker.ShrinkAsync(Request(source), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.Equal(500, Assert.Single(_log.Errors).Length);
+    }
+
+    // Round 2: PDFsharp 6.2.4 can't decode every filter; a page with such content is left untouched and the rest still shrinks.
+    [Fact]
+    public async Task Shrink_PageWithRunLengthContent_IsLeftByteIdentical_AndTheRestShrinks()
+    {
+        byte[] plain = "q 0.5 g 10 10 50 50 re f Q"u8.ToArray();
+        byte[] runLength = [(byte)(plain.Length - 1), .. plain, 128];
+        var source = Path.Combine(_folder.Path, "runlength.pdf");
+        using (var document = new PdfDocument())
+        {
+            ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, ImagePdf.MakeJpeg(3000, 2000), 3000, 2000));
+            var page = document.AddPage();
+            var content = new PdfDictionary(document);
+            content.Elements["/Filter"] = new PdfName("/RunLengthDecode");
+            content.CreateStream(runLength);
+            document.Internals.AddObject(content);
+            page.Elements["/Contents"] = content.Reference;
+            document.Save(source);
+        }
+
+        var result = await Run(source);
+
+        Assert.True(result.Success, result.Message);
+        using var shrunk = TestFolder.Read(result.OutputPaths[0]);
+        Assert.Equal(2, shrunk.PageCount);
+        var stream = Assert.Single(ContentStreams(shrunk), d => d.Elements.GetName("/Filter") == "/RunLengthDecode");
+        Assert.Equal(runLength, stream.Stream.Value);
+        await AssertRenders(result.OutputPaths[0], 2);
+    }
+
     // Finding 2: quality 70
     [Fact]
     public async Task Shrink_UnderLimit_ReencodesAtQuality70()
