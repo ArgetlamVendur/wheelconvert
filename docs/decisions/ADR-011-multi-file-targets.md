@@ -1,5 +1,5 @@
 # ADR-011: Multi-input targets and the v0.2 target set
-Status: Proposed (needs user approval: changes frozen contracts) · Date: 2026-11-18
+Status: Accepted · 2026-11-18 (user, via overnight-run authorisation) · Date: 2026-11-18
 
 ## Context
 v0.1 maps one dropped file to one job (`ConversionRequest.SourcePath`, one `DropPlanner` request per file).
