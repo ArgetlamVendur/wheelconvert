@@ -85,7 +85,7 @@ public sealed partial class MediaConverter : IConverter
         TargetCatalog.AudioMp3.Id, TargetCatalog.AudioM4a.Id, TargetCatalog.AudioFlac.Id,
         TargetCatalog.AudioWav.Id, TargetCatalog.AudioOgg.Id, TargetCatalog.AudioOpus.Id,
         TargetCatalog.VideoMp4.Id, TargetCatalog.VideoWebm.Id, TargetCatalog.VideoGif.Id,
-        TargetCatalog.VideoExtractMp3.Id,
+        TargetCatalog.VideoExtractMp3.Id, TargetCatalog.VideoSmaller.Id,
     ];
 
     // Same-format targets (WAV → WAV) are hidden by the registry via ConversionTarget.IsRedundantFor.
@@ -151,7 +151,12 @@ public sealed partial class MediaConverter : IConverter
         }
 
         var sourceFullPath = Path.GetFullPath(request.SourcePath);
-        var label = target.Id == TargetCatalog.VideoExtractMp3.Id ? OutputLabels.Audio : request.OutputLabel;
+        var label = target.Id switch
+        {
+            var id when id == TargetCatalog.VideoExtractMp3.Id => OutputLabels.Audio,
+            var id when id == TargetCatalog.VideoSmaller.Id => OutputLabels.Smaller,
+            _ => request.OutputLabel,
+        };
         var timeout = target.InputKind == FileKind.Video ? VideoTimeout : AudioTimeout;
 
         string? temp = null;
@@ -184,6 +189,12 @@ public sealed partial class MediaConverter : IConverter
                 return MapFailure(result.StdErr, sourceFullPath, RequestedEncoders(args));
             }
 
+            if (target.Id == TargetCatalog.VideoSmaller.Id && !IsSmallEnough(temp, sourceFullPath))
+            {
+                // Checked on the finished candidate, before Commit; the finally block discards the temp file (WP-16 req. 7).
+                return ConversionResult.Fail(ConversionError.NoResult, "This video is already about as small as it gets.");
+            }
+
             var final = output.Commit(temp, sourceFullPath, ext, label);
             committed = true;
             return ConversionResult.Ok(final);
@@ -214,6 +225,10 @@ public sealed partial class MediaConverter : IConverter
             }
         }
     }
+
+    /// <summary>True when the candidate is at least 5 % smaller than the source.</summary>
+    private static bool IsSmallEnough(string candidatePath, string sourcePath) =>
+        new FileInfo(candidatePath).Length <= new FileInfo(sourcePath).Length * 0.95;
 
     private const int LogLineCount = 20;
     private const int LogLineMaxLength = 300;

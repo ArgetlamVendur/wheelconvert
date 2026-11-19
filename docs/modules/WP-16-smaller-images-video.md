@@ -34,14 +34,14 @@ One fixed preset that makes a photo or video small enough for email, WhatsApp an
 ## Acceptance tests
 | # | Who | Test | Expected | Result |
 |---|---|---|---|---|
-| 1 | Agent | 4000 × 3000 JPEG q95 | 1920 × 1440 JPEG, smaller, upright, no GPS | |
-| 2 | Agent | 800 × 600 JPEG q60 | Not enlarged; `NoResult` if not 5 % smaller, no temp left | |
-| 3 | Agent | HEIC sample | `.jpg` output | |
-| 4 | Agent | PNG with alpha | `.png`, alpha kept | |
-| 5 | Agent | Animated GIF | `Unsupported` | |
-| 6 | Agent (real FFmpeg) | 1920 × 1080 test video | 1280 × 720 MP4 | |
-| 7 | Agent (real FFmpeg) | 1080 × 1920 (portrait) | 720 × 1280 MP4 | |
-| 8 | Agent (real FFmpeg) | 640 × 360 video | Not upscaled | |
+| 1 | Agent | 4000 × 3000 JPEG q95 | 1920 × 1440 JPEG, smaller, upright, no GPS | PASS (ImageShrinkerTests.Test1) |
+| 2 | Agent | 800 × 600 JPEG q60 | Not enlarged; `NoResult` if not 5 % smaller, no temp left | PASS (Test2: NoResult, no temp, source untouched) |
+| 3 | Agent | HEIC sample | `.jpg` output | NEEDS USER (no HEIC sample can be made or downloaded here; AVIF covers the shared path after decoding; HEIC decode via libheif unverified — check with an iPhone HEIC in test 9) |
+| 4 | Agent | PNG with alpha | `.png`, alpha kept | PASS (Test4: png, alpha kept) |
+| 5 | Agent | Animated GIF | `Unsupported` | PASS (Test5) |
+| 6 | Agent (real FFmpeg) | 1920 × 1080 test video | 1280 × 720 MP4 | PASS (real FFmpeg) |
+| 7 | Agent (real FFmpeg) | 1080 × 1920 (portrait) | 720 × 1280 MP4 | PASS (real FFmpeg) |
+| 8 | Agent (real FFmpeg) | 640 × 360 video | Not upscaled | PASS (real FFmpeg; also 720 exact and odd 641x361 to 640x360) |
 | 9 | User | A phone photo and a phone video from `wc-test` → Smaller | Both much smaller; both look fine; video plays in the Photos app | NEEDS USER |
 
 ## Out of scope
