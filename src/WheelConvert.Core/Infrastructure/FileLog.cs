@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using WheelConvert.Core.Contracts;
 
@@ -12,11 +13,16 @@ public sealed class FileLog : ILog
     public const long MaxBytes = 1024 * 1024;
 
     private readonly string _path;
-    private readonly object _gate = new();
+    // The app and both converters each build their own FileLog on the same file. One process-wide lock per file
+    // (keyed by full path, case-insensitive like NTFS) keeps their appends and the 1 MB roll from interleaving.
+    private static readonly ConcurrentDictionary<string, object> Gates = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly object _gate;
 
     public FileLog(string path)
     {
         _path = Path.GetFullPath(path);
+        _gate = Gates.GetOrAdd(_path, static _ => new object());
     }
 
     public static string DefaultPath =>

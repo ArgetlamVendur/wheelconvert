@@ -26,7 +26,7 @@ public sealed class PdfConverter : IConverter
     [
         TargetCatalog.PdfSplitPages.Id, TargetCatalog.PdfToImages.Id, TargetCatalog.PdfRotate90.Id,
         TargetCatalog.PdfReorder.Id, TargetCatalog.PdfSplitHalf.Id, TargetCatalog.PdfExtractOdd.Id,
-        TargetCatalog.PdfExtractEven.Id, TargetCatalog.PdfReverse.Id,
+        TargetCatalog.PdfExtractEven.Id, TargetCatalog.PdfReverse.Id, TargetCatalog.PdfMerge.Id,
     ];
 
     public bool CanConvert(string sourceExtension, string targetId) =>
@@ -75,6 +75,12 @@ public sealed class PdfConverter : IConverter
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(output);
 
+        if (request.Target.Id == TargetCatalog.PdfMerge.Id)
+        {
+            // Merge checks every input itself so a failure can name the file.
+            return await RunMergeAsync(request, output, progress, cancellationToken).ConfigureAwait(false);
+        }
+
         if (!File.Exists(request.SourcePath))
         {
             return SourceMissing();
@@ -107,6 +113,27 @@ public sealed class PdfConverter : IConverter
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return ConversionResult.Fail(ConversionError.Unknown, "Something went wrong while working on this PDF.");
+        }
+    }
+
+    private static async Task<ConversionResult> RunMergeAsync(
+        ConversionRequest request,
+        IOutputWriter output,
+        IProgress<double>? progress,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await Task.Run(() => PdfMerger.Merge(request, output, progress, cancellationToken), cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return ConversionResult.Fail(ConversionError.Unknown, "Something went wrong while merging these PDFs.");
         }
     }
 

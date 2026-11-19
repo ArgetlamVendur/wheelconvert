@@ -64,6 +64,25 @@ public sealed class MediaConverterTests : IDisposable
     }
 
     [Fact]
+    public async Task Failed_run_log_drops_truncation_marker_and_the_cut_line_after_it()
+    {
+        var source = Source("clip.wav");
+        // ProcessRunner cut the first kept line in the middle of the folder path, so RedactPaths cannot match it.
+        var cutTail = _folder.Path[(_folder.Path.Length / 2)..];
+        var stdErr = "[\u2026truncated\u2026]\n" + "ut #0, wav, from '" + cutTail + Path.DirectorySeparatorChar + "clip.wav':\n" + "Error opening output files: Invalid argument\n";
+        var runner = new FakeRunner { Result = new ProcessResult(1, string.Empty, stdErr, TimedOut: false) };
+        var log = new ListLog();
+        var converter = new MediaConverter(() => null, _ => FakeFfmpeg(), runner.RunAsync, log);
+
+        await converter.ConvertAsync(ConversionRequest.Create(source, TargetCatalog.AudioMp3), new SafeOutputWriter(), null, CancellationToken.None);
+
+        var line = Assert.Single(log.Lines);
+        Assert.DoesNotContain(cutTail, line, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("truncated", line, StringComparison.Ordinal);
+        Assert.Contains("Error opening output files: Invalid argument", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void RedactPaths_replaces_both_paths_with_file_names_in_either_slash_style()
     {
         var input = Path.Combine(_folder.Path, "in dir", "a.mov");
