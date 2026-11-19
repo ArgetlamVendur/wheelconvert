@@ -12,6 +12,7 @@ Hold **Shift** and drag a file in Windows Explorer (or press **Ctrl+Alt+Space**)
 - **Images:** JPG, PNG, WebP, ICO (from HEIC, PNG, JPG, WebP, GIF, TIFF, BMP, AVIF).
 - **Audio and video** (needs FFmpeg, see below): MP3, M4A, FLAC, WAV, OGG, Opus, MP4, WebM, GIF, extract audio.
 - **PDF tools:** split pages, halves, odd/even, rotate, reverse, reorder pages, pages to images.
+- **PDF → Word:** text and headings only, not the layout. Scanned PDFs aren't supported yet.
 - **Never overwrites anything:** outputs are named `photo (converted).jpg`, `photo (converted 2).jpg`... next to the original. Your original file is never changed.
 
 ## Install

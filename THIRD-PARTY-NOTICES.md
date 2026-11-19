@@ -15,6 +15,8 @@ The release installer and the portable zip include the full texts in a `licenses
 | `licenses/Microsoft.Extensions.DependencyInjection.Abstractions-8.0.2-LICENSE.txt` and `-THIRD-PARTY-NOTICES.txt` | that package's `LICENSE.TXT` and `THIRD-PARTY-NOTICES.TXT` |
 | `licenses/Microsoft.Extensions.Logging.Abstractions-8.0.3-LICENSE.txt` and `-THIRD-PARTY-NOTICES.txt` | that package's `LICENSE.TXT` and `THIRD-PARTY-NOTICES.TXT` |
 | `licenses/System.Security.Cryptography.Pkcs-8.0.1-LICENSE.txt` and `-THIRD-PARTY-NOTICES.txt` | that package's `LICENSE.TXT` and `THIRD-PARTY-NOTICES.TXT` |
+| `licenses/PdfPig-0.1.16.nuspec`, `licenses/DocumentFormat.OpenXml-3.5.1.nuspec`, `licenses/DocumentFormat.OpenXml.Framework-3.5.1.nuspec` | that package's `.nuspec` (the only file in each package that names the licence and the copyright holder; none ships a licence text) |
+| `licenses/System.IO.Packaging-8.0.1-LICENSE.txt` and `-THIRD-PARTY-NOTICES.txt` | that package's `LICENSE.TXT` and `THIRD-PARTY-NOTICES.TXT` |
 | `licenses/pdfium/*` (15 files, listed in section 4) | copied once into the repo (`installer/licenses/pdfium/`) from the pdfium-binaries release, see section 4 |
 
 **Credit lines the licences require.** Both libraries are inside the shipped native DLLs. The sentences are quoted from the files named.
@@ -40,13 +42,17 @@ The release installer and the portable zip include the full texts in a `licenses
 | Microsoft.Extensions.DependencyInjection.Abstractions | 8.0.2 | MIT | nuspec, `LICENSE.TXT`, `THIRD-PARTY-NOTICES.TXT` (shipped) |
 | Microsoft.Extensions.Logging.Abstractions | 8.0.3 | MIT | nuspec, `LICENSE.TXT`, `THIRD-PARTY-NOTICES.TXT` (shipped) |
 | System.Security.Cryptography.Pkcs | 8.0.1 | MIT | nuspec, `LICENSE.TXT`, `THIRD-PARTY-NOTICES.TXT` (shipped) |
+| PdfPig | 0.1.16 (exact pin; NuGet ID `PdfPig`, namespace `UglyToad.PdfPig`) | Apache-2.0 (nuspec `license` expression); author UglyToad; <https://github.com/UglyToad/PdfPig>. The package contains no licence or notice file; no dependencies for net8.0 | `pdfpig.nuspec` (shipped) |
+| DocumentFormat.OpenXml | 3.5.1 | MIT; (c) Microsoft Corporation; <https://github.com/dotnet/Open-XML-SDK>. The package contains no licence file | `documentformat.openxml.nuspec` (shipped) |
+| DocumentFormat.OpenXml.Framework | 3.5.1 | MIT; (c) Microsoft Corporation. The package contains no licence file | `documentformat.openxml.framework.nuspec` (shipped) |
+| System.IO.Packaging | 8.0.1 | MIT | nuspec, `LICENSE.TXT`, `THIRD-PARTY-NOTICES.TXT` (shipped) |
 
 The Linux and macOS native assets that restore also pulls in (bblanchon.PDFium.Linux and .macOS, SkiaSharp.NativeAssets.Linux.NoDependencies and .macOS) are not part of the `win-x64` publish.
 
 MIT and Apache-2.0 require that the licence text and copyright notice travel with the software. Apache-2.0 text: <https://www.apache.org/licenses/LICENSE-2.0>. MIT text: see `LICENSE` (same wording; each package names its own copyright holder above).
 
 ### Test-only packages (not distributed)
-Microsoft.NET.Test.Sdk 18.11.0 (MIT), xunit 2.9.3 (Apache-2.0), xunit.runner.visualstudio 4.0.1 (Apache-2.0). Used only by `tests/`; not in the exe, installer or zip.
+Microsoft.NET.Test.Sdk 18.11.0 (MIT), xunit 2.9.3 (Apache-2.0), xunit.runner.visualstudio 4.0.1 (Apache-2.0), PDFsharp 6.2.4 (MIT; also used by the Docx tests). Used only by `tests/`; not in the exe, installer or zip.
 
 ## 2. Native libraries bundled in Magick.NET: `Magick.Native-Q8-x64.dll`
 
@@ -171,3 +177,5 @@ I searched these 15 files for "Lesser", "LGPL", "Mozilla Public" and "GNU Genera
 4. **SignPath "OSI-approved licence for all components".** See `docs/GO-NO-GO.md`. The repository is public, but the bundled LGPL/MPL libraries should be checked against that condition before applying.
 5. **PDFtoImage credit.** Closed (user decision 2026-11-17): the credit line "PDFtoImage by David Sungaila (MIT)" with the project URL is in the credit lines above.
 6. **FreeType credit year. Closed (user decision 2026-11-17).** The shipped files state no year range for FreeType 2.14.3, so the FTL's own range "1996-2002, 2006" is kept; no invented years. (Earlier text: The shipped files state no copyright year range for FreeType 2.14.3 itself (details in the FreeType credit line above), so the credit sentence uses the range written in the FTL text. Keep that, or ask the FreeType project which year to use.)
+
+7. **PdfPig and DocumentFormat.OpenXml licence texts (WP-18).** PdfPig (Apache-2.0), DocumentFormat.OpenXml and DocumentFormat.OpenXml.Framework (MIT) ship no licence text in their NuGet packages, only the nuspec with the licence expression and, for the Microsoft packages, the copyright line. The nuspecs are shipped in `licenses/`; the MIT text is in `LICENSE` and the Apache-2.0 text is linked above. Decide whether the upstream licence files should be copied into `installer/licenses/` before the next release.

@@ -36,12 +36,12 @@ It does **not** reproduce the layout: no columns, tables, images or exact fonts.
 ## Acceptance tests
 | # | Who | Test | Expected | Result |
 |---|---|---|---|---|
-| 1 | Agent | Generated 2-page PDF with a title + 3 paragraphs | `.docx` with Heading 1 + 3 paragraphs + page break; validator 0 errors | |
-| 2 | Agent | PDF with hyphenated line ends | Words joined | |
-| 3 | Agent | Image-only PDF | `NoResult` "looks like a scan", no temp left | |
-| 4 | Agent | Encrypted / garbage | `PasswordProtected` / `CorruptInput`, no temp left | |
-| 5 | Agent | Cancel on a 200-page PDF | No temp left | |
-| 6 | Agent | Source unchanged (hash) | Pass | |
+| 1 | Agent | Generated 2-page PDF with a title + 3 paragraphs | `.docx` with Heading 1 + 3 paragraphs + page break; validator 0 errors | PASS |
+| 2 | Agent | PDF with hyphenated line ends | Words joined | PASS |
+| 3 | Agent | Image-only PDF | `NoResult` "looks like a scan", no temp left | PASS |
+| 4 | Agent | Encrypted / garbage | `PasswordProtected` / `CorruptInput`, no temp left | PASS |
+| 5 | Agent | Cancel on a 200-page PDF | No temp left | PASS |
+| 6 | Agent | Source unchanged (hash) | Pass | PASS |
 | 7 | User | A real text PDF (e.g. a report) → Word, open in Word | Text and headings readable and editable | NEEDS USER |
 | 8 | User | A phone-scanned PDF → Word | Clear "looks like a scan" message | NEEDS USER |
 | 9 | User | One Hindi and one Odia text PDF → Word | Readable, or the README states the limit | NEEDS USER |

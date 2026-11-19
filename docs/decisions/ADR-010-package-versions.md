@@ -24,6 +24,14 @@ The base was created without NuGet access; versions are pinned per module as it 
 | Microsoft.NET.Test.Sdk | WheelConvert.App.Tests | 18.11.0 | MIT | WP-03 |
 | xunit | WheelConvert.App.Tests | 2.9.3 | Apache-2.0 | WP-03 |
 | xunit.runner.visualstudio | WheelConvert.App.Tests | 4.0.1 | Apache-2.0 | WP-03 |
+| PdfPig | Converters.Docx | 0.1.16 (exact pin `[0.1.16]`) | Apache-2.0 (nuspec `license` expression), 2026-11-19. NuGet ID is `PdfPig`; `UglyToad.PdfPig` is only its namespace, and the package of that ID on nuget.org (1.7.0-custom-5, no licence) is a third-party upload: never use it. Owners BobLd, EliotJones, PdfPig. The package ships no licence or notice file (only `README.md`, icon, nuspec). No dependencies for net8.0 (the Microsoft.Bcl.HashCode, System.Memory, System.ValueTuple dependencies in the nuspec apply to netstandard2.0 and .NET Framework only) | WP-18 |
+| DocumentFormat.OpenXml | Converters.Docx | 3.5.1 (exact pin `[3.5.1]`) | MIT (nuspec), (c) Microsoft Corporation, 2026-11-19. Ships no licence file (only `README.md`, icon, nuspec) | WP-18 |
+| DocumentFormat.OpenXml.Framework | Converters.Docx (transitive) | 3.5.1 | MIT (nuspec), (c) Microsoft Corporation, 2026-11-19. Ships no licence file | WP-18 |
+| System.IO.Packaging | Converters.Docx (transitive) | 8.0.1 | MIT (nuspec), 2026-11-19. Ships `LICENSE.TXT` and `THIRD-PARTY-NOTICES.TXT` (read) | WP-18 |
+| PDFsharp | Converters.Docx.Tests (test only, not shipped) | 6.2.4 (exact pin) | MIT, same pin and reason as Converters.Pdf (6.5.0+ is AGPL). Used to make an encrypted test PDF | WP-18 |
+| Microsoft.NET.Test.Sdk | Converters.Docx.Tests (test only, not shipped) | 18.11.0 | MIT | WP-18 |
+| xunit | Converters.Docx.Tests (test only, not shipped) | 2.9.3 | Apache-2.0 | WP-18 |
+| xunit.runner.visualstudio | Converters.Docx.Tests (test only, not shipped) | 4.0.1 | Apache-2.0 | WP-18 |
 
 Upgrades: one package per PR, note breaking changes, re-run the module's tests.
 

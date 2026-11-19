@@ -31,6 +31,7 @@
   <ItemGroup>
     <ProjectReference Include="..\WheelConvert.Core\WheelConvert.Core.csproj" />
     <ProjectReference Include="..\WheelConvert.Converters.Image\WheelConvert.Converters.Image.csproj" />
+    <ProjectReference Include="..\WheelConvert.Converters.Docx\WheelConvert.Converters.Docx.csproj" />
     <ProjectReference Include="..\WheelConvert.Converters.Media\WheelConvert.Converters.Media.csproj" />
     <ProjectReference Include="..\WheelConvert.Converters.Pdf\WheelConvert.Converters.Pdf.csproj" />
     <ProjectReference Include="..\WheelConvert.Converters.Qr\WheelConvert.Converters.Qr.csproj" />
