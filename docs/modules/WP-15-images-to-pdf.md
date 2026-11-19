@@ -28,13 +28,13 @@ Main use: phone photos or scans of a form, ID or receipts that a portal wants as
 ## Acceptance tests
 | # | Who | Test | Expected | Result |
 |---|---|---|---|---|
-| 1 | Agent | 1 portrait JPEG | 1-page PDF, portrait A4, label "converted" | |
-| 2 | Agent | 3 images: 1200 × 1600 JPEG, 1600 × 1200 JPEG, 800 × 1200 PNG with alpha | 3 pages: portrait, landscape, portrait; alpha on white | |
-| 3 | Agent | JPEG with EXIF orientation 6 | Page shows it upright | |
-| 4 | Agent | 6000 × 4000 photo | Embedded image ≤ 300 DPI at placed size | |
-| 5 | Agent | Embedded image has no EXIF/GPS | Pass | |
-| 6 | Agent | One corrupt input among 3 | `CorruptInput` naming it, no temp left | |
-| 7 | Agent | Cancel during 30 images | No temp left | |
+| 1 | Agent | 1 portrait JPEG | 1-page PDF, portrait A4, label "converted" | PASS (`OnePortraitJpeg_OnePortraitA4Page_LabelConverted`) |
+| 2 | Agent | 3 images: 1200 × 1600 JPEG, 1600 × 1200 JPEG, 800 × 1200 PNG with alpha | 3 pages: portrait, landscape, portrait; alpha on white | PASS (`ThreeImages_PortraitLandscapePortrait_AlphaOnWhite_LabelCombined`) |
+| 3 | Agent | JPEG with EXIF orientation 6 | Page shows it upright | PASS (`ExifOrientation6_PageShowsImageUpright`) |
+| 4 | Agent | 6000 × 4000 photo | Embedded image ≤ 300 DPI at placed size | PASS (`LargePhoto_IsDownscaledToAtMost300Dpi`) |
+| 5 | Agent | Embedded image has no EXIF/GPS | Pass | PASS (`EmbeddedImage_HasNoExifOrGpsMetadata`) |
+| 6 | Agent | One corrupt input among 3 | `CorruptInput` naming it, no temp left | PASS (`OneCorruptInputAmongThree_FailsNamingIt_NothingLeftBehind`) |
+| 7 | Agent | Cancel during 30 images | No temp left | PASS (`CancelDuring30Images_NoTempLeft`) |
 | 8 | User | Select 3 phone photos (one HEIC) in `wc-test`, drop on PDF | One PDF, A4 pages, upright, in name order | NEEDS USER |
 | 9 | User | Upload that PDF to any portal you use | Accepted | NEEDS USER |
 

@@ -81,7 +81,12 @@ public sealed class ImageConverter : IConverter
         TargetCatalog.ImagePng.Id,
         TargetCatalog.ImageWebp.Id,
         TargetCatalog.ImageIco.Id,
+        TargetCatalog.ImageToPdf.Id,
     ];
+
+    internal static bool IsSupportedInput(string extension) => Inputs.Contains(extension);
+
+    internal static MagickFormat FormatFor(string extension) => ExtensionFormats[extension];
 
     public bool CanConvert(string sourceExtension, string targetId)
     {
@@ -128,6 +133,13 @@ public sealed class ImageConverter : IConverter
         ArgumentNullException.ThrowIfNull(output);
 
         cancellationToken.ThrowIfCancellationRequested();
+
+        if (request.Target.Id == TargetCatalog.ImageToPdf.Id)
+        {
+            return IsSecurityInitialized
+                ? await ImagesToPdf.ConvertAsync(request, output, progress, _log, cancellationToken).ConfigureAwait(false)
+                : ConversionResult.Fail(ConversionError.ToolMissing, LibraryFailedMessage);
+        }
 
         string? temp = null;
         var committed = false;
