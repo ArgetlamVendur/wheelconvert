@@ -198,11 +198,20 @@ public sealed class ConversionJobQueue : IAsyncDisposable
             _log.Error("A cancellation callback threw during shutdown.", ex);
         }
 
-        var all = Task.WhenAll(_workers);
-        if (await Task.WhenAny(all, Task.Delay(ShutdownGrace)).ConfigureAwait(false) != all)
+        // WaitAsync(timeout) instead of racing Task.Delay: no uncancelled timer is left behind (CA2027 on newer SDKs).
+        try
+        {
+            await Task.WhenAll(_workers).WaitAsync(ShutdownGrace).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
         {
             _log.Warn("Queue shutdown timed out; a converter ignored cancellation.");
             return; // Don't dispose token sources still in use by stuck workers.
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // As before: a faulted worker must not stop us from releasing the token sources.
+            _log.Error("A queue worker ended with an error while stopping.", ex);
         }
 
         lock (_gate)
