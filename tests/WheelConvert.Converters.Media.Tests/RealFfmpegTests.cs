@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using WheelConvert.Core.Contracts;
 using WheelConvert.Core.Formats;
+using WheelConvert.Core.Infrastructure;
 using WheelConvert.Core.Output;
 using Xunit;
 using Xunit.Abstractions;
@@ -18,9 +19,10 @@ public sealed class RealFfmpegTests(ITestOutputHelper log) : IDisposable
 
     public void Dispose() => _folder.Dispose();
 
-    private static MediaConverter Converter()
+    private static MediaConverter Converter(ILog? log = null)
     {
-        var converter = new MediaConverter(() => null);
+        // A throwaway log keeps test failures out of the user's real wheelconvert.log.
+        var converter = new MediaConverter(() => null, c => ToolLocator.Find("ffmpeg", c), (exe, args, timeout, ct, onLine) => ProcessRunner.RunAsync(exe, args, timeout, ct, onLine), log ?? new ListLog());
         Assert.True(converter.CheckHealth().IsAvailable);
         return converter;
     }
@@ -30,6 +32,94 @@ public sealed class RealFfmpegTests(ITestOutputHelper log) : IDisposable
         var path = _folder.File("tone.wav");
         await RealFfmpeg.GenerateAsync("-f", "lavfi", "-i", $"sine=frequency=440:duration={seconds}", "-c:a", "pcm_s16le", path);
         return path;
+    }
+
+    // ---- WP-21 acceptance tests 2, 3, 5: input hardening ----
+
+    [FfmpegFact]
+    public async Task Hls_playlist_renamed_to_mp4_fails_as_corrupt_and_never_reads_the_segment()
+    {
+        var segment = _folder.File("secretsegment.wav");
+        await RealFfmpeg.GenerateAsync("-f", "lavfi", "-i", "sine=frequency=440:duration=1", "-c:a", "pcm_s16le", segment);
+        var playlist = _folder.File("clip.mp4");
+        File.WriteAllText(playlist, "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:1\n#EXTINF:1.0,\n" + segment + "\n#EXT-X-ENDLIST\n");
+        var logLines = new ListLog();
+
+        var result = await Converter(logLines).ConvertAsync(ConversionRequest.Create(playlist, TargetCatalog.AudioMp3), new SafeOutputWriter(), null, CancellationToken.None);
+
+        log.WriteLine(string.Join('\n', logLines.Lines));
+        Assert.Equal(ConversionError.CorruptInput, result.Error);
+        Assert.DoesNotContain("secretsegment", string.Join('\n', logLines.Lines), StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(_folder.TempFiles());
+    }
+
+    [FfmpegFact]
+    public async Task Ffconcat_file_renamed_to_avi_fails_as_corrupt()
+    {
+        var segment = _folder.File("secretsegment.wav");
+        await RealFfmpeg.GenerateAsync("-f", "lavfi", "-i", "sine=frequency=440:duration=1", "-c:a", "pcm_s16le", segment);
+        var concat = _folder.File("clip.avi");
+        File.WriteAllText(concat, "ffconcat version 1.0\nfile '" + segment.Replace('\\', '/') + "'\n");
+        var logLines = new ListLog();
+
+        var result = await Converter(logLines).ConvertAsync(ConversionRequest.Create(concat, TargetCatalog.VideoMp4), new SafeOutputWriter(), null, CancellationToken.None);
+
+        log.WriteLine(string.Join('\n', logLines.Lines));
+        Assert.Equal(ConversionError.CorruptInput, result.Error);
+        Assert.DoesNotContain("secretsegment", string.Join('\n', logLines.Lines), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [FfmpegFact]
+    public async Task Input_with_space_hindi_and_odia_characters_converts()
+    {
+        var source = _folder.File("\u091F\u0947\u0938\u094D\u091F \u0B13\u0B21\u0B3C\u0B3F\u0B06 clip.mp4");
+        await RealFfmpeg.GenerateAsync("-f", "lavfi", "-i", "testsrc=duration=1:size=320x240:rate=5", "-f", "lavfi", "-i", "sine=frequency=440:duration=1", "-c:v", "mpeg4", "-c:a", "aac", "-shortest", source);
+
+        var result = await Converter().ConvertAsync(ConversionRequest.Create(source, TargetCatalog.AudioMp3), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.True(result.Success, result.Message);
+        Assert.True(await RealFfmpeg.DecodesCleanlyAsync(result.OutputPaths.Single()));
+    }
+
+    // ---- Whitelist covers every audio/video extension (proves mov,mp4,... and matroska,webm match by part) ----
+
+    [FfmpegTheory]
+    [InlineData("mov", "mpeg4")]
+    [InlineData("mp4", "mpeg4")]
+    [InlineData("m4v", "mpeg4")]
+    [InlineData("mkv", "mpeg4")]
+    [InlineData("webm", "libvpx")]
+    [InlineData("avi", "mpeg4")]
+    [InlineData("wmv", "wmv2")]
+    public async Task Every_video_extension_is_accepted_by_the_whitelist(string ext, string videoCodec)
+    {
+        var source = _folder.File("v." + ext);
+        await RealFfmpeg.GenerateAsync("-f", "lavfi", "-i", "testsrc=duration=1:size=320x240:rate=5", "-c:v", videoCodec, source);
+
+        var result = await Converter().ConvertAsync(ConversionRequest.Create(source, TargetCatalog.VideoGif), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.True(result.Success, ext + ": " + result.Message);
+    }
+
+    [FfmpegTheory]
+    [InlineData("mp3", "libmp3lame")]
+    [InlineData("wav", "pcm_s16le")]
+    [InlineData("flac", "flac")]
+    [InlineData("ogg", "libvorbis")]
+    [InlineData("opus", "libopus")]
+    [InlineData("m4a", "aac")]
+    [InlineData("aac", "aac")]
+    [InlineData("wma", "wmav2")]
+    [InlineData("aiff", "pcm_s16be")]
+    [InlineData("aif", "pcm_s16be")]
+    public async Task Every_audio_extension_is_accepted_by_the_whitelist(string ext, string codec)
+    {
+        var source = _folder.File("a." + ext);
+        await RealFfmpeg.GenerateAsync("-f", "lavfi", "-i", "sine=frequency=440:duration=1", "-c:a", codec, source);
+
+        var result = await Converter().ConvertAsync(ConversionRequest.Create(source, TargetCatalog.AudioWav), new SafeOutputWriter(), null, CancellationToken.None);
+
+        Assert.True(result.Success, ext + ": " + result.Message);
     }
 
     // ---- Acceptance test 3 ----
@@ -142,8 +232,9 @@ public sealed class RealFfmpegTests(ITestOutputHelper log) : IDisposable
         var result = await Converter().ConvertAsync(ConversionRequest.Create(source, TargetCatalog.AudioFlac), new SafeOutputWriter(), null, CancellationToken.None);
 
         log.WriteLine($"{result.Error}: {result.Message}");
-        Assert.Equal(ConversionError.ToolFailed, result.Error);
-        Assert.Equal("FFmpeg could not convert this file.", result.Message);
+        // -format_whitelist (WP-21) refuses the script outright, so its text never reaches the error mapping.
+        Assert.Equal(ConversionError.CorruptInput, result.Error);
+        Assert.Equal("This file couldn't be read. It may be damaged.", result.Message);
         Assert.Equal(hash, TestFolder.Hash(source));
         Assert.Single(Directory.GetFiles(_folder.Path));
     }

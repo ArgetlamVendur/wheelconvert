@@ -40,16 +40,16 @@ Any converter project. `IConverter.cs`, `IOutputWriter.cs`, `IWheelView.cs`. `Di
 ## Acceptance tests
 | # | Who | Test | Expected | Result |
 |---|---|---|---|---|
-| 1 | Agent | All existing Core and App tests | Pass unchanged | |
-| 2 | Agent | `NaturalFileNameComparer` on `scan 10, scan 2, Scan 1, scan 02` | `Scan 1, scan 02, scan 2, scan 10` (02 before 2: tie broken by full path) | |
-| 3 | Agent | `DropPlanner` + `pdf.merge`, 3 PDFs dropped in random order | One request; `AllSourcePaths` naturally sorted | |
-| 4 | Agent | `pdf.merge` with 1 PDF + 1 JPG | No request; PDF skipped "Drop at least 2 files for Merge."; JPG skipped "Not a Pdf file." | |
-| 5 | Agent | `image.to-pdf` with 1 image | One request, no additional paths | |
-| 6 | Agent | `GetTargetsFor` with 1 PDF (fake converter listing `pdf.merge`) | Merge hidden; with 2 PDFs shown | |
-| 7 | Agent | `IsRedundantFor` on `image.smaller` / `image.resize` with `.jpg` | false | |
-| 8 | Agent | Every `TargetCatalog.All` label ≤ 8 chars, IDs unique | Pass | |
-| 8a | Agent | `GetTargetsFor` with 2 PDFs (fake converter listing all PDF targets) | Reorder, Halves, Odd, Even, Reverse hidden; Split, Images, Rotate, Merge shown | |
-| 8b | Agent | `DropPlanner` + `pdf.reverse` with 2 PDFs | No request; both skipped "Drop one file at a time for Reverse." | |
+| 1 | Agent | All existing Core and App tests | Pass unchanged |  PASS (Core 84/84, App 118, Image 55, Media 123, Pdf 64; two catalog-count assertions and one Pdf converter list assertion adjusted, see PR) |
+| 2 | Agent | `NaturalFileNameComparer` on `scan 10, scan 2, Scan 1, scan 02` | `Scan 1, scan 02, scan 2, scan 10` (02 before 2: tie broken by full path) |  PASS (Natural_Sort_ScanNames) |
+| 3 | Agent | `DropPlanner` + `pdf.merge`, 3 PDFs dropped in random order | One request; `AllSourcePaths` naturally sorted |  PASS (Plan_Merge_ThreePdfsRandomOrder_OneSortedRequest) |
+| 4 | Agent | `pdf.merge` with 1 PDF + 1 JPG | No request; PDF skipped "Drop at least 2 files for Merge."; JPG skipped "Not a Pdf file." |  PASS (Plan_Merge_OnePdfAndOneJpg_NoRequest) |
+| 5 | Agent | `image.to-pdf` with 1 image | One request, no additional paths |  PASS (Plan_ImageToPdf_OneImage_OneRequestNoAdditional) |
+| 6 | Agent | `GetTargetsFor` with 1 PDF (fake converter listing `pdf.merge`) | Merge hidden; with 2 PDFs shown |  PASS (GetTargetsFor_Merge_NeedsTwoPdfs) |
+| 7 | Agent | `IsRedundantFor` on `image.smaller` / `image.resize` with `.jpg` | false |  PASS (IsRedundantFor_SmallerAndResize_NeverRedundant) |
+| 8 | Agent | Every `TargetCatalog.All` label ≤ 8 chars, IDs unique | Pass |  PASS (Catalog_LabelsFitAndIdsUnique) |
+| 8a | Agent | `GetTargetsFor` with 2 PDFs (fake converter listing all PDF targets) | Reorder, Halves, Odd, Even, Reverse hidden; Split, Images, Rotate, Merge shown |  PASS (GetTargetsFor_TwoPdfs_HidesSingleFileTargets) |
+| 8b | Agent | `DropPlanner` + `pdf.reverse` with 2 PDFs | No request; both skipped "Drop one file at a time for Reverse." |  PASS (Plan_Reverse_TwoPdfs_NoRequestBothSkipped) |
 | 9 | User | Install the build, use the wheel on an image, a PDF, a video | Same segments as before this WP (no new ones yet) | NEEDS USER |
 | 10 | User | Drag two PDFs | Only Split, Images, Rotate (the five single-file ones are gone) | NEEDS USER |
 

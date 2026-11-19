@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using WheelConvert.Core.Contracts;
 using WheelConvert.Core.Infrastructure;
 using WheelConvert.Core.Output;
 using Xunit;
@@ -200,4 +201,16 @@ internal sealed class CancelMidway(CancellationTokenSource cts) : IProgress<doub
             cts.Cancel();
         }
     }
+}
+
+/// <summary>Collects log lines in memory.</summary>
+internal sealed class ListLog : ILog
+{
+    public List<string> Lines { get; } = [];
+
+    public void Info(string message) => Lines.Add(message);
+
+    public void Warn(string message, Exception? exception = null) => Lines.Add(message + (exception is null ? string.Empty : " | " + exception));
+
+    public void Error(string message, Exception? exception = null) => Lines.Add(message + (exception is null ? string.Empty : " | " + exception));
 }

@@ -23,6 +23,7 @@ public sealed class DropCoordinator
     private readonly INotifier _notifier;
     private readonly IClipboardService _clipboard;
     private readonly IPageOrderPrompt _pageOrderPrompt;
+    private readonly IResizePrompt _resizePrompt; // TODO(WP-19): used by image.resize; the stub returns null for now.
     private readonly Func<AppSettings> _settings;
     private readonly Dispatcher _dispatcher;
     private volatile bool _stopped;
@@ -33,6 +34,7 @@ public sealed class DropCoordinator
         INotifier notifier,
         IClipboardService clipboard,
         IPageOrderPrompt pageOrderPrompt,
+        IResizePrompt resizePrompt,
         Func<AppSettings> settings,
         Dispatcher dispatcher)
     {
@@ -41,6 +43,7 @@ public sealed class DropCoordinator
         _notifier = notifier;
         _clipboard = clipboard;
         _pageOrderPrompt = pageOrderPrompt;
+        _resizePrompt = resizePrompt;
         _settings = settings;
         _dispatcher = dispatcher;
         _queue.BatchCompleted += OnBatchCompleted;

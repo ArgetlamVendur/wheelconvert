@@ -45,7 +45,7 @@ public static class FormatsTests
         {
             Assert.True(t.Label.Length <= 8, $"label too long: {t.Label}");
             Assert.True(t.InputKind != FileKind.Unsupported, $"{t.Id} has no input kind");
-            Assert.True(t.ProducesText == (t.OutputExtension is null), $"{t.Id}: text targets have no extension and vice versa");
+            Assert.True(!t.ProducesText || t.OutputExtension is null, $"{t.Id}: text targets have no extension (ADR-011: a null extension without ProducesText means the converter chooses it)");
             if (t.OutputExtension is not null)
             {
                 Assert.Equal(FileClassifier.NormalizeExtension(t.OutputExtension), t.OutputExtension, t.Id);

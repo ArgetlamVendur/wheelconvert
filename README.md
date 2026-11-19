@@ -33,7 +33,7 @@ winget install Gyan.FFmpeg
 Everything runs on your PC. WheelConvert does not send your files, file names or usage data anywhere and has no account or telemetry. Settings and the log are kept in `%LOCALAPPDATA%\WheelConvert\`.
 
 ## Report a bug
-Open an issue on the GitHub repository. Include what you did, what you expected, what happened, your Windows version and, if you can, the log file from `%LOCALAPPDATA%\WheelConvert\`. Please do not attach private files.
+Open an issue on the GitHub repository. Include what you did, what you expected, what happened, your Windows version and, if you can, the log file (attach `%LOCALAPPDATA%\WheelConvert\wheelconvert.log`; failed conversions now record the reason there, with file names only, no folder paths). Please do not attach private files.
 
 ## Contributing (humans and AI agents)
 Work is split into independent work packages in [`docs/modules/`](docs/modules/). Every coding agent (Claude Code, Antigravity, others) follows the rules in [`AGENTS.md`](AGENTS.md); read it first, then [`docs/STATUS.md`](docs/STATUS.md).
