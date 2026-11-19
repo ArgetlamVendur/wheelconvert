@@ -24,7 +24,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 18 | PDF → Word (text only) | TODO | — | — | — | New Docx project |
 | 19 | Image resize | TODO | — | — | — | Image + App dialog |
 | 20 | Smaller PDF | TODO | — | — | — | Pdf project; no Ghostscript; direct SkiaSharp pin |
-| 21 | FFmpeg hardening + error log | TODO (ADR-013 Accepted 2026-11-18) | — | — | — | Before WP-16 and WP-17 |
+| 21 | FFmpeg hardening + error log | REVIEW | Sonnet | — | wp-21-ffmpeg-hardening (stacked on PR #22) | ADR-013 Accepted 2026-11-18. Agent tests 1-8 PASS (Media 154, Image 57); test 9 PASS (user, 2026-11-19). Before WP-16 and WP-17 |
 | 22 | Release hardening + version from tag | REVIEW | Sonnet | — | wp-22-release-hardening | Before the next tag |
 
 From 2026-11-10 only Claude models are used: the reviewer must be a different model from the builder, in a fresh session (AGENTS.md §2). From 2026-11-12 the remaining work runs as an orchestrated run (AGENTS.md §9).

@@ -29,6 +29,7 @@ public sealed partial class MediaConverter : IConverter
     private readonly Func<string?> _ffmpegPathProvider;
     private readonly Func<string?, string?> _locate;
     private readonly ToolRunner _run;
+    private readonly ILog _log;
 
     // Written by CheckHealth (worker thread), read by concurrent ConvertAsync calls. Reference/bool writes are atomic.
     private volatile string? _ffmpegPath;
@@ -39,13 +40,39 @@ public sealed partial class MediaConverter : IConverter
         : this(
             ffmpegPathProvider,
             configured => ToolLocator.Find("ffmpeg", configured),
-            (exe, args, timeout, ct, onLine) => ProcessRunner.RunAsync(exe, args, timeout, ct, onLine))
+            (exe, args, timeout, ct, onLine) => ProcessRunner.RunAsync(exe, args, timeout, ct, onLine),
+            // The frozen constructor has no ILog (ADR-013): failures go to the default log file, which FileLog shares safely.
+            new FileLog(FileLog.DefaultPath))
+    {
+    }
+
+    private sealed class NullLog : ILog
+    {
+        public static readonly NullLog Instance = new();
+
+        public void Info(string message)
+        {
+        }
+
+        public void Warn(string message, Exception? exception = null)
+        {
+        }
+
+        public void Error(string message, Exception? exception = null)
+        {
+        }
+    }
+
+    /// <summary>Test constructor without a log: failures are not logged.</summary>
+    internal MediaConverter(Func<string?> ffmpegPathProvider, Func<string?, string?> locate, ToolRunner run)
+        : this(ffmpegPathProvider, locate, run, NullLog.Instance)
     {
     }
 
     /// <summary>Test constructor: <paramref name="locate"/> replaces the PATH search, <paramref name="run"/> replaces ProcessRunner.</summary>
-    internal MediaConverter(Func<string?> ffmpegPathProvider, Func<string?, string?> locate, ToolRunner run)
+    internal MediaConverter(Func<string?> ffmpegPathProvider, Func<string?, string?> locate, ToolRunner run, ILog log)
     {
+        _log = log ?? throw new ArgumentNullException(nameof(log));
         _ffmpegPathProvider = ffmpegPathProvider ?? throw new ArgumentNullException(nameof(ffmpegPathProvider));
         _locate = locate ?? throw new ArgumentNullException(nameof(locate));
         _run = run ?? throw new ArgumentNullException(nameof(run));
@@ -153,7 +180,7 @@ public sealed partial class MediaConverter : IConverter
 
             if (result.ExitCode != 0)
             {
-                // Not logged: the frozen constructor has no ILog (WP-07 req. 5 can't be met as written; see the PR).
+                LogFailure(result.StdErr, sourceFullPath, temp);
                 return MapFailure(result.StdErr, sourceFullPath, RequestedEncoders(args));
             }
 
@@ -187,6 +214,44 @@ public sealed partial class MediaConverter : IConverter
             }
         }
     }
+
+    private const int LogLineCount = 20;
+    private const int LogLineMaxLength = 300;
+
+    /// <summary>
+    /// ADR-013: on a failed run, logs the last 20 non-progress stderr lines, each cut to 300 characters, with the input and
+    /// output paths reduced to file names. Never on success; the text never reaches the UI.
+    /// </summary>
+    private void LogFailure(string? stdErr, string sourceFullPath, string outputPath)
+    {
+        try
+        {
+            var lines = (stdErr ?? string.Empty).Split('\n')
+                .Select(l => l.TrimEnd('\r'))
+                .Where(l => !string.IsNullOrWhiteSpace(l) && !FfmpegProgressParser.IsProgressLine(l.Trim()))
+                .TakeLast(LogLineCount)
+                .Select(l => Truncate(RedactPaths(l, sourceFullPath, outputPath), LogLineMaxLength));
+            _log.Warn($"FFmpeg failed for {Path.GetFileName(sourceFullPath)}: " + string.Join(" | ", lines));
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // Logging must never change the conversion result.
+        }
+    }
+
+    internal static string RedactPaths(string text, params string[] paths)
+    {
+        foreach (var path in paths.Where(p => !string.IsNullOrEmpty(p)).Select(Path.GetFullPath).OrderByDescending(p => p.Length))
+        {
+            var name = Path.GetFileName(path);
+            text = text.Replace(path, name, StringComparison.OrdinalIgnoreCase)
+                .Replace(path.Replace(Path.DirectorySeparatorChar, '/'), name, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return text;
+    }
+
+    internal static string Truncate(string text, int max) => text.Length <= max ? text : text[..max];
 
     // ProcessRunner's buffer prefixes stderr with this line when it dropped the start; the line after it is cut mid-line.
     private const string TruncationMarker = "[…truncated…]";
@@ -257,6 +322,19 @@ public sealed partial class MediaConverter : IConverter
             return ConversionResult.Fail(ConversionError.CorruptInput, "This file couldn't be read. It may be damaged.");
         }
 
+        // -format_whitelist refused the file's real format (a renamed playlist or concat file): four closing lines; the
+        // whitelist named in the first is our own constant, so a file cannot fake it (WP-21 gotcha). The two "[in#0 @ ptr]"
+        // lines come from different FFmpeg objects, so their pointers differ.
+        if (last == "Error opening input files: Invalid argument"
+            && lines.Count >= 4
+            && lines[^2].StartsWith("Error opening input file ", StringComparison.Ordinal)
+            && InputOpenFailedPattern().Match(lines[^3]) is { Success: true }
+            && WhitelistPattern().Match(lines[^4]) is { Success: true } refused
+            && refused.Groups[2].Value == FfmpegArguments.InputFormatWhitelist)
+        {
+            return ConversionResult.Fail(ConversionError.CorruptInput, "This file couldn't be read. It may be damaged.");
+        }
+
         if (last == "Error opening output files: Encoder not found")
         {
             // Four closing lines: "[aost#0:0 @ ptr] Unknown encoder 'x'", "[same prefix] Error selecting an encoder",
@@ -296,9 +374,17 @@ public sealed partial class MediaConverter : IConverter
     private static bool IsOldShapeInvalidData(string line, string sourceFullPath) =>
         sourceFullPath.Length > 0
         && (string.Equals(line, sourceFullPath + OldInvalidDataSuffix, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(line, sourceFullPath.Replace('\\', '/') + OldInvalidDataSuffix, StringComparison.OrdinalIgnoreCase));
+            || string.Equals(line, sourceFullPath.Replace('\\', '/') + OldInvalidDataSuffix, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(line, "file:" + sourceFullPath + OldInvalidDataSuffix, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(line, "file:" + sourceFullPath.Replace('\\', '/') + OldInvalidDataSuffix, StringComparison.OrdinalIgnoreCase));
 
     // Whole-line shapes copied from real FFmpeg output (pointer is "0000024..." on Windows, "0x55..." elsewhere). [0-9] rather than \d: \d also matches non-ASCII digits.
+    [GeneratedRegex(@"^\[(in#[0-9]+ @ (?:0x)?[0-9a-fA-F]+)\] Error opening input: Invalid argument\z", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex InputOpenFailedPattern();
+
+    [GeneratedRegex(@"^\[(in#[0-9]+ @ (?:0x)?[0-9a-fA-F]+)\] Format not on whitelist '([a-z0-9,]{1,200})'\z", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex WhitelistPattern();
+
     [GeneratedRegex(@"^\[([a-z]ost#[0-9]+:[0-9]+ @ (?:0x)?[0-9a-fA-F]+)\] Unknown encoder '([A-Za-z0-9_\-]{1,32})'\z", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex UnknownEncoderPattern();
 
