@@ -12,6 +12,8 @@
     <!-- Exact pin: PDFsharp 6.5.0+ is AGPL-3.0, banned by ADR-005. 6.2.4 is the last MIT release (ADR-010). -->
     <PackageReference Include="PDFsharp" Version="[6.2.4]" />
     <PackageReference Include="PDFtoImage" Version="5.4.0" />
+    <!-- Exact pin, WP-20: direct use for JPEG re-encoding. Same version PDFtoImage already brings; the lock file changes only from Transitive to Direct. -->
+    <PackageReference Include="SkiaSharp" Version="[4.150.1]" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\health-check.pdf" LogicalName="WheelConvert.Converters.Pdf.health-check.pdf" />
