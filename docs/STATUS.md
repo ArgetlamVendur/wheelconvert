@@ -16,16 +16,16 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 10 | QR reader | SHELVED (user, 2026-11-17) | Sonnet | — | wp-10-qr (draft PR #17) | Built at 0fc6443, not reviewed; QR stub stays on main so no QR segment shows |
 | 11 | Integration | DONE | Claude Code (Opus) | Antigravity | PR #2 (b234417) | Merged |
 | 12 | Packaging + release | DONE | Sonnet | Opus | PR #19 | Merged. Reviews: docs/reviews/WP-12-2026-11-17.md (APPROVE after 2 fix rounds). Checkpoint 3 user tests PASS 2026-11-17 (Defender clean, VirusTotal skipped); GO recorded by user. Tag `v0.1.0-rc1` pushed by the user 2026-11-18; draft prerelease check and publishing pending |
-| 13 | Core: multi-input targets | REVIEW | Sonnet | — | wp-13-core-multi-input / PR #24 (stacked on #22) | Blocks 14, 15, 16, 18, 19, 20. Adds `MaxInputs`: 2+ PDFs hide 5 single-file targets |
-| 14 | PDF merge | TODO | — | — | — | Pdf project; before WP-20 |
+| 13 | Core: multi-input targets | DONE | Sonnet | Opus | PR #24 | Merged. APPROVE (docs/reviews/WP-13-2026-11-19.md); 9 rules revert-checked. `PdfConverterTests` `notYet` list: WP-14/18/20 remove their ID. `DropCoordinator` interaction path is PDF-only: WP-19 must add the resize branch. User tests 9-10 NEEDS USER |
+| 14 | PDF merge | DONE | Sonnet | Opus | PR #28 | Merged. APPROVE (docs/reviews/WP-14-2026-11-19.md); agent tests 1-6 PASS (Pdf 75). User tests 7-9 NEEDS USER (incl. the 10-segment wheel check). Follow-ups: README note (bookmarks/metadata dropped); locked input reports an output error; no test for per-page cancel / zero-page input |
 | 15 | Images → PDF | TODO | — | — | — | Image project; before WP-16 |
 | 16 | Smaller (images, video) | TODO | — | — | — | Image + Media; after WP-21; before WP-19 |
 | 17 | One-click FFmpeg install | TODO (needs ADR-012 Accepted after the by-hand winget check) | — | — | — | After WP-21; independent of WP-13 |
 | 18 | PDF → Word (text only) | REVIEW | Sonnet | — | wp-18-pdf-to-word | Agent tests 1-6 PASS (Docx 28, App 118, Pdf 64, Image 57, Media 154); tests 7-10 NEED USER. Packages: PdfPig 0.1.16 (NuGet ID is `PdfPig`), DocumentFormat.OpenXml 3.5.1 |
 | 19 | Image resize | TODO | — | — | — | Image + App dialog |
 | 20 | Smaller PDF | TODO | — | — | — | Pdf project; no Ghostscript; direct SkiaSharp pin |
-| 21 | FFmpeg hardening + error log | REVIEW | Sonnet | — | wp-21-ffmpeg-hardening (stacked on PR #22) | ADR-013 Accepted 2026-11-18. Agent tests 1-8 PASS (Media 154, Image 57); test 9 PASS (user, 2026-11-19). Before WP-16 and WP-17 |
-| 22 | Release hardening + version from tag | REVIEW | Sonnet | — | wp-22-release-hardening | Before the next tag |
+| 21 | FFmpeg hardening + error log | DONE | Sonnet | Opus | PR #25 | Merged. APPROVE (docs/reviews/WP-21-2026-11-19.md). Test 9 PASS (user, 2026-11-19). Log follow-ups (path fragment after truncation; three loggers on one file): fixed in PR #29 (APPROVE, docs/reviews/chore-log-followups-2026-11-19.md). HLS test passes even without the whitelist on FFmpeg 9.0.2 (ffconcat test covers it) |
+| 22 | Release hardening + version from tag | DONE | Sonnet | Opus | PR #23 | Merged. APPROVE (docs/reviews/WP-22-2026-11-19.md). Follow-ups: no test for the job queue exit timeout; acceptance row 4 not testable on .NET 8 SDK; ProductVersion carries `+commit` |
 
 From 2026-11-10 only Claude models are used: the reviewer must be a different model from the builder, in a fresh session (AGENTS.md §2). From 2026-11-12 the remaining work runs as an orchestrated run (AGENTS.md §9).
 From 2026-11-17 Opus replaces Fable as orchestrator and reviewer.

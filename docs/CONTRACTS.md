@@ -50,7 +50,7 @@ The writer enforces what it can: it only commits/discards temps **it issued**, o
 Reference pattern (single output):
 
 ```csharp
-var ext = request.Target.OutputExtension ?? ".png"; // null = converter chooses (ADR-011 s4); never use `!`
+var ext = request.Target.OutputExtension ?? FileClassifier.NormalizeExtension(request.SourcePath); // null = keep the source's own type (ADR-011 s4); never use `!`
 var temp = output.CreateTempPath(request.SourcePath, ext);
 var committed = false;
 try

@@ -393,8 +393,8 @@ public sealed class PdfConverterTests : IDisposable
     [Fact]
     public void Supports_AllPdfTargets_OnlyForPdf()
     {
-        // WP-13 added pdf.merge, pdf.to-docx and pdf.smaller to the catalog; WP-14, 18 and 20 implement them and remove this exclusion.
-        string[] notYet = [TargetCatalog.PdfMerge.Id, TargetCatalog.PdfToDocx.Id, TargetCatalog.PdfSmaller.Id];
+        // WP-13 added pdf.merge, pdf.to-docx and pdf.smaller to the catalog; WP-14 implemented pdf.merge; WP-18 and 20 implement the rest and remove this exclusion.
+        string[] notYet = [TargetCatalog.PdfToDocx.Id, TargetCatalog.PdfSmaller.Id];
         var pdfTargets = TargetCatalog.All.Where(t => t.InputKind == FileKind.Pdf && !notYet.Contains(t.Id)).Select(t => t.Id).Order();
         Assert.Equal(pdfTargets, _converter.SupportedTargetIds.Order());
         Assert.True(_converter.CanConvert(".pdf", TargetCatalog.PdfReverse.Id));

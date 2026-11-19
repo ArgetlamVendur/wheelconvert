@@ -226,8 +226,15 @@ public sealed partial class MediaConverter : IConverter
     {
         try
         {
-            var lines = (stdErr ?? string.Empty).Split('\n')
-                .Select(l => l.TrimEnd('\r'))
+            var all = (stdErr ?? string.Empty).Split('\n').Select(l => l.TrimEnd('\r')).ToList();
+            if (all.Count > 0 && all[0] == TruncationMarker)
+            {
+                // The line after the marker was cut mid-line, so it can hold the tail of a folder path that
+                // RedactPaths can no longer match. Drop it, as MapFailure does.
+                all.RemoveRange(0, Math.Min(2, all.Count));
+            }
+
+            var lines = all
                 .Where(l => !string.IsNullOrWhiteSpace(l) && !FfmpegProgressParser.IsProgressLine(l.Trim()))
                 .TakeLast(LogLineCount)
                 .Select(l => Truncate(RedactPaths(l, sourceFullPath, outputPath), LogLineMaxLength));
