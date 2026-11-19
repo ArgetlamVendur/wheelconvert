@@ -15,11 +15,13 @@ namespace WheelConvert.Converters.Image.Tests;
 public sealed class ImagesToPdfTests : IDisposable
 {
     private readonly string _dir;
-    private readonly ImageConverter _converter = new(new ListLog());
+    private readonly ListLog _log = new();
+    private readonly ImageConverter _converter;
     private readonly SafeOutputWriter _writer = new();
 
     public ImagesToPdfTests()
     {
+        _converter = new ImageConverter(_log);
         _dir = Path.Combine(Path.GetTempPath(), "wc-pdf-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_dir);
     }
@@ -78,7 +80,7 @@ public sealed class ImagesToPdfTests : IDisposable
         Assert.True(third.Dict.Stream.TryUncompress());
         var raw = third.Dict.Stream.Value;
         Assert.NotEmpty(raw);
-        Assert.All(raw, v => Assert.Equal(255, v));
+        Assert.True(raw.All(v => v == 255), "embedded pixels are not all white");
     }
 
     [Fact]
@@ -175,8 +177,10 @@ public sealed class ImagesToPdfTests : IDisposable
         }
 
         using var cts = new CancellationTokenSource();
+        var reports = 0;
         var progress = new SyncProgress(count =>
         {
+            reports = count;
             if (count == 3)
             {
                 cts.Cancel();
@@ -187,8 +191,119 @@ public sealed class ImagesToPdfTests : IDisposable
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => _converter.ConvertAsync(request, _writer, progress, cts.Token));
 
+        // Cancelled between images: at most one more image is finished after the cancel, not all 30.
+        Assert.InRange(reports, 3, 4);
         Assert.Equal(30, Directory.GetFiles(_dir).Length);
         Assert.DoesNotContain(Directory.GetFiles(_dir), f => f.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) || Path.GetFileName(f).StartsWith(".~wc-", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task CorruptInput_LogLineHasFileNameButNoFolderPath()
+    {
+        var a = MakeImage("a.jpg", 400, 300, MagickColors.Red);
+        var bad = Path.Combine(_dir, "broken.jpg");
+        File.WriteAllText(bad, "this is not a jpeg");
+
+        var result = await Run(a, bad);
+
+        Assert.False(result.Success);
+        var line = Assert.Single(_log.Lines);
+        Assert.Contains("broken.jpg", line, StringComparison.Ordinal);
+        Assert.DoesNotContain(_dir, line, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(_dir.Replace(Path.DirectorySeparatorChar, '/'), line, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar, '/'), line, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CommitFails_TempFileIsDiscarded()
+    {
+        var jpg = MakeImage("photo.jpg", 400, 300, MagickColors.Red);
+        var writer = new ThrowingCommitWriter(_writer);
+        var request = ConversionRequest.Create(jpg, TargetCatalog.ImageToPdf);
+
+        var result = await _converter.ConvertAsync(request, writer, null, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(ConversionError.OutputFailed, result.Error);
+        // The temp PDF really existed when Commit ran, so Discard is what removed it.
+        Assert.True(writer.TempExistedAtCommit);
+        Assert.Equal([jpg], Directory.GetFiles(_dir));
+    }
+
+    [Fact]
+    public async Task EmbeddingFormat_JpegSourceIsDct_PngSourceIsFlate()
+    {
+        var jpg = MakeImage("a.jpg", 400, 300, MagickColors.Red);
+        var png = MakeImage("b.png", 400, 300, MagickColors.Blue);
+
+        var result = await Run(jpg, png);
+
+        Assert.True(result.Success);
+        var pages = ReadPages(result.OutputPaths[0]);
+        Assert.Contains("DCTDecode", pages[0].Images.Single().Dict.Elements["/Filter"]?.ToString(), StringComparison.Ordinal);
+        Assert.Contains("FlateDecode", pages[1].Images.Single().Dict.Elements["/Filter"]?.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task JpegSource_IsEncodedAtQuality85()
+    {
+        // Noise so the quantisation tables, not the picture, decide the estimated quality.
+        var path = Path.Combine(_dir, "noise.jpg");
+        using (var image = new MagickImage(MagickColors.Gray, 600, 400))
+        {
+            image.AddNoise(NoiseType.Gaussian);
+            image.Quality = 100;
+            image.Write(path, MagickFormat.Jpeg);
+        }
+
+        var result = await Run(path);
+
+        Assert.True(result.Success);
+        var embedded = ReadPages(result.OutputPaths[0]).Single().Images.Single();
+        using var decoded = new MagickImage(embedded.Dict.Stream.Value, MagickFormat.Jpeg);
+        Assert.Equal(85u, decoded.Quality);
+    }
+
+    [Fact]
+    public async Task CmykJpeg_IsEmbeddedAsRgb()
+    {
+        var path = Path.Combine(_dir, "cmyk.jpg");
+        using (var image = new MagickImage(MagickColors.Red, 400, 300))
+        {
+            image.ColorSpace = ColorSpace.CMYK;
+            image.Write(path, MagickFormat.Jpeg);
+        }
+
+        Assert.Equal(ColorSpace.CMYK, new MagickImageInfo(path).ColorSpace);
+
+        var result = await Run(path);
+
+        Assert.True(result.Success);
+        var embedded = ReadPages(result.OutputPaths[0]).Single().Images.Single();
+        Assert.Equal("/DeviceRGB", embedded.Dict.Elements.GetName("/ColorSpace"));
+    }
+
+    [Fact]
+    public async Task AnimatedGif_OnlyFirstFrameBecomesOnePage()
+    {
+        var path = Path.Combine(_dir, "anim.gif");
+        using (var frames = new MagickImageCollection())
+        {
+            frames.Add(new MagickImage(MagickColors.Red, 200, 100));
+            frames.Add(new MagickImage(MagickColors.Blue, 200, 100));
+            frames.Write(path, MagickFormat.Gif);
+        }
+
+        var result = await Run(path);
+
+        Assert.True(result.Success);
+        var page = Assert.Single(ReadPages(result.OutputPaths[0]));
+        var embedded = page.Images.Single();
+        Assert.True(embedded.Dict.Stream.TryUncompress());
+        var raw = embedded.Dict.Stream.Value;
+        Assert.Equal(255, raw[0]);
+        Assert.Equal(0, raw[1]);
+        Assert.Equal(0, raw[2]);
     }
 
     [Fact]
@@ -247,6 +362,21 @@ public sealed class ImagesToPdfTests : IDisposable
     private sealed record EmbeddedImage(PdfDictionary Dict, int Width, int Height);
 
     private sealed record PageInfo(double Width, double Height, List<EmbeddedImage> Images);
+
+    private sealed class ThrowingCommitWriter(IOutputWriter inner) : IOutputWriter
+    {
+        public bool TempExistedAtCommit { get; private set; }
+
+        public string CreateTempPath(string sourcePath, string outputExtension) => inner.CreateTempPath(sourcePath, outputExtension);
+
+        public string Commit(string tempPath, string sourcePath, string outputExtension, string label)
+        {
+            TempExistedAtCommit = File.Exists(tempPath);
+            throw new IOException("disk full");
+        }
+
+        public bool Discard(string tempPath) => inner.Discard(tempPath);
+    }
 
     private sealed class SyncProgress(Action<int> onReport) : IProgress<double>
     {

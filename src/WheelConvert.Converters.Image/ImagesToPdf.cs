@@ -35,9 +35,9 @@ internal static class ImagesToPdf
     {
         string? temp = null;
         var committed = false;
+        var paths = request.AllSourcePaths;
         try
         {
-            var paths = request.AllSourcePaths;
             foreach (var path in paths)
             {
                 if (!File.Exists(path))
@@ -71,7 +71,7 @@ internal static class ImagesToPdf
         {
             if (failure.Cause is not null)
             {
-                LogFailure(log, failure.Cause, failure.FileName);
+                LogFailure(log, failure.Cause, failure.FileName, paths.Append(temp ?? string.Empty));
             }
 
             return ConversionResult.Fail(failure.Error, failure.Message);
@@ -83,7 +83,7 @@ internal static class ImagesToPdf
         }
         catch (Exception ex)
         {
-            LogFailure(log, ex, Path.GetFileName(request.SourcePath));
+            LogFailure(log, ex, Path.GetFileName(request.SourcePath), paths.Append(temp ?? string.Empty));
             return ConversionResult.Fail(ConversionError.Unknown, "Something went wrong while converting the images.");
         }
         finally
@@ -126,10 +126,18 @@ internal static class ImagesToPdf
         var w = width * scale;
         var h = height * scale;
 
-        using var stream = new MemoryStream(bytes, writable: false);
-        using var xImage = XImage.FromStream(stream);
-        using var gfx = XGraphics.FromPdfPage(page);
-        gfx.DrawImage(xImage, (page.Width.Point - w) / 2, (page.Height.Point - h) / 2, w, h);
+        try
+        {
+            using var stream = new MemoryStream(bytes, writable: false);
+            using var xImage = XImage.FromStream(stream);
+            using var gfx = XGraphics.FromPdfPage(page);
+            gfx.DrawImage(xImage, (page.Width.Point - w) / 2, (page.Height.Point - h) / 2, w, h);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // PDFsharp rejected an image Magick had already decoded: report the file, not a save problem.
+            throw new ImageFailure(ConversionError.CorruptInput, $"Couldn't read {name}.", ex, name);
+        }
     }
 
     /// <summary>Decodes one image and returns the bytes to embed plus the upright pixel size. The Magick image is disposed here.</summary>
@@ -204,11 +212,23 @@ internal static class ImagesToPdf
         }
     }
 
-    private static void LogFailure(ILog log, Exception ex, string fileName)
+    /// <summary>
+    /// ADR-013: type and message only, cut to 500 characters, with every input and temp path reduced to its file name
+    /// (Magick puts full paths in its messages, which would leak folder names and the Windows user name into a shared log).
+    /// </summary>
+    private static void LogFailure(ILog log, Exception ex, string fileName, IEnumerable<string> knownPaths)
     {
         try
         {
-            var text = $"Images to PDF failed for {fileName}: {ex.GetType().Name}: {ex.Message}";
+            var message = ex.Message;
+            foreach (var path in knownPaths.Where(p => p.Length > 0).Select(Path.GetFullPath).OrderByDescending(p => p.Length))
+            {
+                var name = Path.GetFileName(path);
+                message = message.Replace(path, name, StringComparison.OrdinalIgnoreCase)
+                    .Replace(path.Replace(Path.DirectorySeparatorChar, '/'), name, StringComparison.OrdinalIgnoreCase);
+            }
+
+            var text = $"Images to PDF failed for {fileName}: {ex.GetType().Name}: {message}";
             log.Warn(text.Length <= 500 ? text : text[..500]);
         }
         catch (Exception logEx) when (logEx is not OutOfMemoryException)
