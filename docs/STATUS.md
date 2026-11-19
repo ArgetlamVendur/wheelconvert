@@ -25,7 +25,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 19 | Image resize | TODO | — | — | — | Image + App dialog |
 | 20 | Smaller PDF | TODO | — | — | — | Pdf project; no Ghostscript; direct SkiaSharp pin |
 | 21 | FFmpeg hardening + error log | TODO (ADR-013 Accepted 2026-11-18) | — | — | — | Before WP-16 and WP-17 |
-| 22 | Release hardening + version from tag | TODO | — | — | — | Before the next tag |
+| 22 | Release hardening + version from tag | REVIEW | Sonnet | — | wp-22-release-hardening | Before the next tag |
 
 From 2026-11-10 only Claude models are used: the reviewer must be a different model from the builder, in a fresh session (AGENTS.md §2). From 2026-11-12 the remaining work runs as an orchestrated run (AGENTS.md §9).
 From 2026-11-17 Opus replaces Fable as orchestrator and reviewer.
