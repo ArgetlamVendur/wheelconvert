@@ -13,6 +13,15 @@ public static class FfmpegArguments
     public const string GifFilter = "fps=12,scale='min(720,iw)':-2:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse";
 
     /// <summary>
+    /// "Smaller" video filter (WP-16): short edge to at most 720, never upscaled, both sides even (yuv420p/H.264 need even sides).
+    /// Landscape (iw &gt; ih): height 720, width -2 (keeps the ratio, rounds to even). Portrait or square: width 720, height -2.
+    /// At or below 720 the size is kept, rounded down to even (trunc(x/2)*2). One element: the single quotes are FFmpeg filter
+    /// syntax (they protect the commas), not shell quoting. Proven against real FFmpeg in RealFfmpegTests.
+    /// </summary>
+    public const string SmallerFilter =
+        "scale=w='if(gt(min(iw,ih),720),if(gt(iw,ih),-2,720),trunc(iw/2)*2)':h='if(gt(min(iw,ih),720),if(gt(iw,ih),720,-2),trunc(ih/2)*2)':flags=lanczos";
+
+    /// <summary>
     /// Input demuxers FFmpeg may use (<c>-format_whitelist</c>), by FFmpeg's own names from <c>ffmpeg -demuxers</c> (9.0.2).
     /// Only real media demuxers: never hls, concat, ffconcat, image2, tee or any other playlist/meta demuxer (WP-21 req. 2).
     /// mov,mp4,m4a,3gp,3g2,mj2 is one demuxer whose name is a list; FFmpeg matches each part.
@@ -34,6 +43,8 @@ public static class FfmpegArguments
         [TargetCatalog.AudioOpus.Id] = ["-vn", "-map", "0:a:0", "-c:a", "libopus", "-b:a", "128k"],
         [TargetCatalog.VideoMp4.Id] =
             ["-c:v", "libx264", "-preset", "medium", "-crf", "23", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart"],
+        [TargetCatalog.VideoSmaller.Id] =
+            ["-vf", SmallerFilter, "-c:v", "libx264", "-preset", "medium", "-crf", "28", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart"],
         [TargetCatalog.VideoWebm.Id] = ["-c:v", "libvpx-vp9", "-crf", "32", "-b:v", "0", "-c:a", "libopus", "-b:a", "128k"],
         [TargetCatalog.VideoGif.Id] = ["-vf", GifFilter, "-loop", "0"],
     };

@@ -6,6 +6,9 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="WheelConvert.Converters.Image.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\WheelConvert.Core\WheelConvert.Core.csproj" />
   </ItemGroup>
   <ItemGroup>

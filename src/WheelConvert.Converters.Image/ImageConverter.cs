@@ -4,6 +4,7 @@ using ImageMagick.Configuration;
 using WheelConvert.Core.Contracts;
 using WheelConvert.Core.Formats;
 using WheelConvert.Core.Infrastructure;
+using WheelConvert.Core.Output;
 
 namespace WheelConvert.Converters.Image;
 
@@ -82,6 +83,7 @@ public sealed class ImageConverter : IConverter
         TargetCatalog.ImageWebp.Id,
         TargetCatalog.ImageIco.Id,
         TargetCatalog.ImageToPdf.Id,
+        TargetCatalog.ImageSmaller.Id,
     ];
 
     internal static bool IsSupportedInput(string extension) => Inputs.Contains(extension);
@@ -97,6 +99,12 @@ public sealed class ImageConverter : IConverter
 
         // Refuse .ico -> image.ico (same format is filtered anyway) and .gif -> image.ico (animated GIF to icon is meaningless)
         if (targetId == TargetCatalog.ImageIco.Id && (sourceExtension == ".ico" || sourceExtension == ".gif"))
+        {
+            return false;
+        }
+
+        // Smaller keeps the source's format family; .ico has no sensible smaller form.
+        if (targetId == TargetCatalog.ImageSmaller.Id && ImageShrinker.OutputExtensionFor(sourceExtension) is null)
         {
             return false;
         }
@@ -167,7 +175,10 @@ public sealed class ImageConverter : IConverter
                 return ConversionResult.Fail(ConversionError.Unsupported, "Unsupported source format.");
             }
 
-            if (request.Target.OutputExtension is not { } ext)
+            // image.smaller has no fixed extension: the converter chooses it from the source (ADR-011 section 4).
+            var isSmaller = request.Target.Id == TargetCatalog.ImageSmaller.Id;
+            var targetExt = isSmaller ? ImageShrinker.OutputExtensionFor(sourceExt) : request.Target.OutputExtension;
+            if (targetExt is not { } ext)
             {
                 return ConversionResult.Fail(ConversionError.Unsupported, "Target has no output extension.");
             }
@@ -180,9 +191,15 @@ public sealed class ImageConverter : IConverter
 
             cancellationToken.ThrowIfCancellationRequested();
 
+            if (isSmaller && !ImageShrinker.IsSmallEnough(new FileInfo(temp).Length, new FileInfo(request.SourcePath).Length))
+            {
+                // Checked on the finished candidate, before Commit; the finally block discards the temp file.
+                return ConversionResult.Fail(ConversionError.NoResult, ImageShrinker.AlreadySmallMessage);
+            }
+
             progress?.Report(1.0);
 
-            var final = output.Commit(temp, request.SourcePath, ext, request.OutputLabel);
+            var final = output.Commit(temp, request.SourcePath, ext, isSmaller ? OutputLabels.Smaller : request.OutputLabel);
             committed = true;
             return ConversionResult.Ok(final);
         }
@@ -211,6 +228,10 @@ public sealed class ImageConverter : IConverter
         {
             LogFailure(ex, request, temp);
             return ConversionResult.Fail(ConversionError.Unsupported, "Image format or variant is not supported.");
+        }
+        catch (AnimatedGifException)
+        {
+            return ConversionResult.Fail(ConversionError.Unsupported, ImageShrinker.AnimatedGifMessage);
         }
         catch (WebpTooLargeException)
         {
@@ -295,6 +316,12 @@ public sealed class ImageConverter : IConverter
 
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (request.Target.Id == TargetCatalog.ImageSmaller.Id)
+        {
+            ShrinkCore(request, inputFormat, tempPath, cancellationToken);
+            return;
+        }
+
         var isGifToWebp = inputFormat == MagickFormat.Gif && request.Target.Id == TargetCatalog.ImageWebp.Id;
         if (isGifToWebp)
         {
@@ -378,6 +405,31 @@ public sealed class ImageConverter : IConverter
         {
             throw new NotSupportedException($"Target '{request.Target.Id}' is not supported by ImageConverter.");
         }
+    }
+
+    private static void ShrinkCore(ConversionRequest request, MagickFormat inputFormat, string tempPath, CancellationToken cancellationToken)
+    {
+        if (inputFormat == MagickFormat.Gif && ReadSource(() => ImageShrinker.IsAnimatedGif(request.SourcePath)))
+        {
+            throw new AnimatedGifException();
+        }
+
+        // ConvertAsync only gets here for sources OutputExtensionFor accepted, so the extension is never null.
+        var outExt = ImageShrinker.OutputExtensionFor(Path.GetExtension(request.SourcePath).ToLowerInvariant()) ?? ".png";
+
+        using var image = ReadSource(() => new MagickImage(request.SourcePath, new MagickReadSettings { Format = inputFormat, FrameIndex = 0, FrameCount = 1 }));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ImageShrinker.Prepare(image);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var format = ImageShrinker.Configure(image, outExt);
+        if (format == MagickFormat.WebP && (image.Width > WebpMaxDimension || image.Height > WebpMaxDimension))
+        {
+            throw new WebpTooLargeException();
+        }
+
+        WriteImage(image, tempPath, format);
     }
 
     private static T ReadSource<T>(Func<T> read)
@@ -486,4 +538,6 @@ public sealed class ImageConverter : IConverter
     private sealed class ImageTooLargeException : Exception;
 
     private sealed class WebpTooLargeException : Exception;
+
+    private sealed class AnimatedGifException : Exception;
 }
