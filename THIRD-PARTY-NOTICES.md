@@ -43,8 +43,8 @@ The release installer and the portable zip include the full texts in a `licenses
 | Microsoft.Extensions.Logging.Abstractions | 8.0.3 | MIT | nuspec, `LICENSE.TXT`, `THIRD-PARTY-NOTICES.TXT` (shipped) |
 | System.Security.Cryptography.Pkcs | 8.0.1 | MIT | nuspec, `LICENSE.TXT`, `THIRD-PARTY-NOTICES.TXT` (shipped) |
 | PdfPig | 0.1.16 (exact pin; NuGet ID `PdfPig`, namespace `UglyToad.PdfPig`) | Apache-2.0 (nuspec `license` expression); author UglyToad; <https://github.com/UglyToad/PdfPig>. The package contains no licence or notice file; no dependencies for net8.0 | `pdfpig.nuspec` (shipped) |
-| DocumentFormat.OpenXml | 3.5.1 | MIT; (c) Microsoft Corporation; <https://github.com/dotnet/Open-XML-SDK>. The package contains no licence file | `documentformat.openxml.nuspec` (shipped) |
-| DocumentFormat.OpenXml.Framework | 3.5.1 | MIT; (c) Microsoft Corporation. The package contains no licence file | `documentformat.openxml.framework.nuspec` (shipped) |
+| DocumentFormat.OpenXml | 3.5.1 | MIT; Copyright (c) .NET Foundation and Contributors (upstream LICENSE; the nuspec says (c) Microsoft Corporation); <https://github.com/dotnet/Open-XML-SDK>. The package contains no licence file | `documentformat.openxml.nuspec` (shipped) |
+| DocumentFormat.OpenXml.Framework | 3.5.1 | MIT; Copyright (c) .NET Foundation and Contributors (same repository and commit as DocumentFormat.OpenXml; the nuspec says (c) Microsoft Corporation). The package contains no licence file | `documentformat.openxml.framework.nuspec` (shipped) |
 | System.IO.Packaging | 8.0.1 | MIT | nuspec, `LICENSE.TXT`, `THIRD-PARTY-NOTICES.TXT` (shipped) |
 
 The Linux and macOS native assets that restore also pulls in (bblanchon.PDFium.Linux and .macOS, SkiaSharp.NativeAssets.Linux.NoDependencies and .macOS) are not part of the `win-x64` publish.

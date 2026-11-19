@@ -141,7 +141,180 @@ public sealed class DocxConverterTests : IDisposable
     {
         Assert.True(TextRules.IsJunk("�", 0));
         Assert.True(TextRules.IsJunk("", 0));
+        Assert.True(TextRules.IsJunk("\U000F0000", 0));
         Assert.False(TextRules.IsJunk("a", 0));
+    }
+
+    // Finding 5: junk counting on a real PDF. The font's ToUnicode map sends every code to U+E000 (private use).
+    [Fact]
+    public async Task PdfWhoseTextMapsToPrivateUse_IsReportedAsUnreadable_NoTempLeft()
+    {
+        var source = Path.Combine(_folder, "doc.pdf");
+        File.WriteAllBytes(source, RawPdfWithToUnicode(new string('A', 80), "<E000>"));
+
+        var result = await Run(source);
+
+        Assert.False(result.Success);
+        Assert.Equal(ConversionError.NoResult, result.Error);
+        Assert.Equal("Couldn't read the text in this PDF.", result.Message);
+        Assert.Empty(TempFiles());
+    }
+
+    [Fact]
+    public async Task RawPdfWithPlainToUnicode_Converts_SoThePrivateUseTestIsMeaningful()
+    {
+        var source = Path.Combine(_folder, "doc.pdf");
+        File.WriteAllBytes(source, RawPdfWithToUnicode(new string('A', 80), "<0041>"));
+
+        var result = await Run(source);
+
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(new string('A', 80), string.Concat(ReadParagraphs(result.OutputPaths[0]).Select(p => p.Text)));
+    }
+
+    [Fact]
+    public async Task RawPdf_ToUnicodeMapIsHonoured()
+    {
+        var source = Path.Combine(_folder, "doc.pdf");
+        File.WriteAllBytes(source, RawPdfWithToUnicode(new string('A', 80), "<0042>"));
+
+        var result = await Run(source);
+
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(new string('B', 80), string.Concat(ReadParagraphs(result.OutputPaths[0]).Select(p => p.Text)));
+    }
+
+    // Finding 2: line spacing. Each case is one block of four lines that must stay one paragraph.
+    [Theory]
+    [InlineData(13.2)] // single
+    [InlineData(16.5)] // 1.5
+    [InlineData(22)] // double
+    public async Task SpacedLines_StayOneParagraph(double leading)
+    {
+        var builder = new PdfDocumentBuilder();
+        var font = builder.AddStandard14Font(Standard14Font.Helvetica);
+        var page = builder.AddPage(595, 842);
+        for (var i = 0; i < 4; i++)
+        {
+            page.AddText(Para1, 11, new PdfPoint(50, 700 - (i * leading)), font);
+        }
+
+        var result = await Run(Save(builder));
+
+        Assert.True(result.Success, result.Message);
+        var paragraph = Assert.Single(ReadParagraphs(result.OutputPaths[0]), p => p.Text.Length > 0);
+        Assert.Equal(string.Join(' ', Enumerable.Repeat(Para1, 4)), paragraph.Text);
+    }
+
+    [Fact]
+    public async Task TwoParagraphsSeparatedByABlankLine_AreTwoParagraphs()
+    {
+        var builder = new PdfDocumentBuilder();
+        var font = builder.AddStandard14Font(Standard14Font.Helvetica);
+        var page = builder.AddPage(595, 842);
+        var y = 700.0;
+        foreach (var line in new[] { Para1, Para1, Para1, null, Para2, Para2, Para2 })
+        {
+            if (line is null)
+            {
+                y -= 2 * 13.2;
+                continue;
+            }
+
+            page.AddText(line, 11, new PdfPoint(50, y), font);
+            y -= 13.2;
+        }
+
+        var result = await Run(Save(builder));
+
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(2, ReadParagraphs(result.OutputPaths[0]).Count(p => p.Text.Length > 0));
+    }
+
+    [Fact]
+    public async Task TwoLineHeading_IsOneHeading_AboveTheBody()
+    {
+        var builder = new PdfDocumentBuilder();
+        var font = builder.AddStandard14Font(Standard14Font.Helvetica);
+        var page = builder.AddPage(595, 842);
+        page.AddText("A Very Long Report Title That", 28, new PdfPoint(50, 780), font);
+        page.AddText("Wraps Onto Two Lines", 28, new PdfPoint(50, 746), font);
+        page.AddText(Para1, 11, new PdfPoint(50, 690), font);
+        page.AddText(Para1, 11, new PdfPoint(50, 676.8), font);
+
+        var result = await Run(Save(builder));
+
+        Assert.True(result.Success, result.Message);
+        var paragraphs = ReadParagraphs(result.OutputPaths[0]).Where(p => p.Text.Length > 0).ToList();
+        Assert.True(paragraphs.Count == 2, string.Join(" | ", paragraphs.Select(p => p.Style + ":" + p.Text)));
+        Assert.Equal("Heading1", paragraphs[0].Style);
+        Assert.Equal("A Very Long Report Title That Wraps Onto Two Lines", paragraphs[0].Text);
+        Assert.Null(paragraphs[1].Style);
+    }
+
+    [Theory]
+    [InlineData(13.2, 13.2, 3, 11, false)]
+    [InlineData(16.5, 16.5, 3, 11, false)]
+    [InlineData(80, 80, 1, 11, true)]
+    [InlineData(26.4, 13.2, 3, 11, true)]
+    public void StartsNewParagraph_Rules(double pitch, double median, int count, double body, bool expected) =>
+        Assert.Equal(expected, TextRules.StartsNewParagraph(pitch, median, count, body));
+
+    // Finding 3 (S1): the source is only ever read, with sharing that lets other apps keep it open.
+    [Fact]
+    public async Task SourceHeldOpenByAnotherStream_StillConverts()
+    {
+        var source = TwoLineSource();
+        using var otherApp = new FileStream(source, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+
+        var result = await Run(source);
+
+        Assert.True(result.Success, result.Message);
+    }
+
+    [Fact]
+    public async Task ReadOnlySource_StillConverts_AndStaysReadOnly()
+    {
+        var source = TwoLineSource();
+        File.SetAttributes(source, FileAttributes.ReadOnly);
+        try
+        {
+            var result = await Run(source);
+
+            Assert.True(result.Success, result.Message);
+            Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.ReadOnly));
+        }
+        finally
+        {
+            File.SetAttributes(source, FileAttributes.Normal);
+        }
+    }
+
+    // Finding 7: the heading styles are defined, and every style a paragraph uses resolves.
+    [Fact]
+    public async Task StylesPart_DefinesHeading1AndHeading2_WithOutlineLevels()
+    {
+        var builder = new PdfDocumentBuilder();
+        var font = builder.AddStandard14Font(Standard14Font.Helvetica);
+        var page = builder.AddPage(595, 842);
+        page.AddText("Big Title", 28, new PdfPoint(50, 780), font);
+        page.AddText("Section Heading", 16, new PdfPoint(50, 740), font);
+        for (var i = 0; i < 3; i++)
+        {
+            page.AddText(Para1, 11, new PdfPoint(50, 700 - (i * 13.2)), font);
+        }
+
+        var result = await Run(Save(builder));
+
+        Assert.True(result.Success, result.Message);
+        using var doc = WordprocessingDocument.Open(result.OutputPaths[0], false);
+        var styles = doc.MainDocumentPart!.StyleDefinitionsPart!.Styles!.Elements<Style>().ToDictionary(s => s.StyleId!.Value!);
+        Assert.Equal(0, styles["Heading1"].StyleParagraphProperties!.OutlineLevel!.Val!.Value);
+        Assert.Equal(1, styles["Heading2"].StyleParagraphProperties!.OutlineLevel!.Val!.Value);
+        var used = doc.MainDocumentPart.Document!.Body!.Descendants<ParagraphStyleId>().Select(s => s.Val!.Value).Distinct().ToList();
+        Assert.Contains("Heading1", used);
+        Assert.Contains("Heading2", used);
+        Assert.All(used, id => Assert.True(styles.ContainsKey(id!), id));
     }
 
     // Acceptance 4
@@ -199,28 +372,30 @@ public sealed class DocxConverterTests : IDisposable
 
         var source = Save(builder);
         using var cts = new CancellationTokenSource();
+        var progress = new CancelAtProgress(cts, 0.05);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            _converter.ConvertAsync(Request(source), new SafeOutputWriter(), new CancelAtProgress(cts, 0.05), cts.Token));
+            _converter.ConvertAsync(Request(source), new SafeOutputWriter(), progress, cts.Token));
 
+        // Cancelled between pages: extraction stopped long before the last page (reports go up to 0.9).
+        Assert.True(progress.Max < 0.5, $"progress reached {progress.Max}");
         Assert.Empty(TempFiles());
         Assert.Empty(Directory.GetFiles(_folder, "*.docx"));
     }
 
     [Fact]
-    public async Task Cancel_DuringWrite_DiscardsTheTemp()
+    public async Task Cancel_AfterTheTempExists_DiscardsTheTemp()
     {
-        var builder = new PdfDocumentBuilder();
-        var font = builder.AddStandard14Font(Standard14Font.Helvetica);
-        builder.AddPage(595, 842).AddText(Para1, 11, new PdfPoint(50, 780), font);
-        var source = Save(builder);
+        var source = TwoLineSource();
         using var cts = new CancellationTokenSource();
+        var writer = new CancelOnCreateWriter(cts);
 
-        // 0.9 is the last extraction report: the token is cancelled after the last page, before the writer starts.
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            _converter.ConvertAsync(Request(source), new SafeOutputWriter(), new CancelAtProgress(cts, 0.9), cts.Token));
+            _converter.ConvertAsync(Request(source), writer, null, cts.Token));
 
+        Assert.Equal(1, writer.Created);
         Assert.Empty(TempFiles());
+        Assert.Empty(Directory.GetFiles(_folder, "*.docx"));
     }
 
     [Fact]
@@ -274,6 +449,57 @@ public sealed class DocxConverterTests : IDisposable
         Assert.Equal("x", TextRules.XmlSafe("x\uD800"));
     }
 
+    private string TwoLineSource()
+    {
+        var builder = new PdfDocumentBuilder();
+        var font = builder.AddStandard14Font(Standard14Font.Helvetica);
+        var page = builder.AddPage(595, 842);
+        page.AddText(Para1, 11, new PdfPoint(50, 780), font);
+        page.AddText(Para2, 11, new PdfPoint(50, 766.8), font);
+        return Save(builder);
+    }
+
+    /// <summary>A one-page PDF (Helvetica) whose font has a ToUnicode CMap mapping the code for 'A' to <paramref name="unicodeHex"/>.</summary>
+    private static byte[] RawPdfWithToUnicode(string text, string unicodeHex)
+    {
+        var cmap = "/CIDInit /ProcSet findresource begin 12 dict begin begincmap\n"
+            + "/CMapName /Adobe-Identity-UCS def /CMapType 2 def\n"
+            + "1 begincodespacerange <00> <FF> endcodespacerange\n"
+            + $"1 beginbfchar <41> {unicodeHex} endbfchar\n"
+            + "endcmap CMapName currentdict /CMap defineresource pop end end";
+        var content = $"BT /F1 12 Tf 50 700 Td ({text}) Tj ET";
+        string[] objects =
+        [
+            "<< /Type /Catalog /Pages 2 0 R >>",
+            "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+            $"<< /Length {content.Length} >>\nstream\n{content}\nendstream",
+            // A Type3 font needs no font file; PdfPig ignores ToUnicode on the standard-14 fonts, so Helvetica can't be used here.
+            "<< /Type /Font /Subtype /Type3 /FontBBox [0 0 1000 1000] /FontMatrix [0.001 0 0 0.001 0 0] /CharProcs << /a 7 0 R >> "
+                + "/Encoding << /Type /Encoding /Differences [65 /a] >> /FirstChar 65 /LastChar 65 /Widths [600] /ToUnicode 6 0 R >>",
+            $"<< /Length {cmap.Length} >>\nstream\n{cmap}\nendstream",
+            "<< /Length 28 >>\nstream\n600 0 d0 0 0 500 500 re f\nendstream",
+        ];
+
+        var sb = new System.Text.StringBuilder("%PDF-1.4\n");
+        var offsets = new List<int>();
+        for (var i = 0; i < objects.Length; i++)
+        {
+            offsets.Add(sb.Length);
+            sb.Append(i + 1).Append(" 0 obj\n").Append(objects[i]).Append("\nendobj\n");
+        }
+
+        var xref = sb.Length;
+        sb.Append("xref\n0 ").Append(objects.Length + 1).Append("\n0000000000 65535 f \n");
+        foreach (var offset in offsets)
+        {
+            sb.Append(offset.ToString("D10")).Append(" 00000 n \n");
+        }
+
+        sb.Append("trailer\n<< /Size ").Append(objects.Length + 1).Append(" /Root 1 0 R >>\nstartxref\n").Append(xref).Append("\n%%EOF\n");
+        return System.Text.Encoding.ASCII.GetBytes(sb.ToString());
+    }
+
     private ConversionRequest Request(string source) => ConversionRequest.Create(source, TargetCatalog.PdfToDocx);
 
     private Task<ConversionResult> Run(string source) =>
@@ -310,6 +536,27 @@ public sealed class DocxConverterTests : IDisposable
         return doc.MainDocumentPart!.Document!.Body!.Descendants<Break>().Count(b => b.Type?.Value == BreakValues.Page);
     }
 
+    /// <summary>The real writer, except that the job is cancelled as soon as the temp file has been issued.</summary>
+    private sealed class CancelOnCreateWriter(CancellationTokenSource cts) : IOutputWriter
+    {
+        private readonly SafeOutputWriter _inner = new();
+
+        public int Created { get; private set; }
+
+        public string CreateTempPath(string sourcePath, string outputExtension)
+        {
+            Created++;
+            var temp = _inner.CreateTempPath(sourcePath, outputExtension);
+            cts.Cancel();
+            return temp;
+        }
+
+        public string Commit(string tempPath, string sourcePath, string outputExtension, string label) =>
+            _inner.Commit(tempPath, sourcePath, outputExtension, label);
+
+        public bool Discard(string tempPath) => _inner.Discard(tempPath);
+    }
+
     /// <summary>The real writer, except that every commit throws like a full disk would.</summary>
     private sealed class FailingCommitWriter : IOutputWriter
     {
@@ -326,8 +573,11 @@ public sealed class DocxConverterTests : IDisposable
     /// <summary>Cancels synchronously once progress reaches the threshold (Progress&lt;T&gt; would post asynchronously).</summary>
     private sealed class CancelAtProgress(CancellationTokenSource cts, double threshold) : IProgress<double>
     {
+        public double Max { get; private set; }
+
         public void Report(double value)
         {
+            Max = Math.Max(Max, value);
             if (value >= threshold)
             {
                 cts.Cancel();

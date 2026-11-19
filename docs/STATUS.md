@@ -21,7 +21,7 @@ One row per work package. **Update your row in the same PR as the work.** States
 | 15 | Images → PDF | TODO | — | — | — | Image project; before WP-16 |
 | 16 | Smaller (images, video) | TODO | — | — | — | Image + Media; after WP-21; before WP-19 |
 | 17 | One-click FFmpeg install | TODO (needs ADR-012 Accepted after the by-hand winget check) | — | — | — | After WP-21; independent of WP-13 |
-| 18 | PDF → Word (text only) | REVIEW | Sonnet | — | wp-18-pdf-to-word | Agent tests 1-6 PASS (Docx 28, App 118, Pdf 64, Image 57, Media 154); tests 7-10 NEED USER. Packages: PdfPig 0.1.16 (NuGet ID is `PdfPig`), DocumentFormat.OpenXml 3.5.1 |
+| 18 | PDF → Word (text only) | REVIEW | Sonnet | — | wp-18-pdf-to-word | Agent tests 1-6 PASS (Docx 43, App 118, Pdf 75); fix round 1 done; tests 7-10 NEED USER. Packages: PdfPig 0.1.16 (NuGet ID is `PdfPig`), DocumentFormat.OpenXml 3.5.1 |
 | 19 | Image resize | TODO | — | — | — | Image + App dialog |
 | 20 | Smaller PDF | TODO | — | — | — | Pdf project; no Ghostscript; direct SkiaSharp pin |
 | 21 | FFmpeg hardening + error log | DONE | Sonnet | Opus | PR #25 | Merged. APPROVE (docs/reviews/WP-21-2026-11-19.md). Test 9 PASS (user, 2026-11-19). Log follow-ups (path fragment after truncation; three loggers on one file): fixed in PR #29 (APPROVE, docs/reviews/chore-log-followups-2026-11-19.md). HLS test passes even without the whitelist on FFmpeg 9.0.2 (ffconcat test covers it) |

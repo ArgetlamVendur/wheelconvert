@@ -16,8 +16,18 @@ internal static class TextRules
     /// <summary>More than this share of junk characters means the PDF has no usable text map (gotchas).</summary>
     public const double MaxJunkShare = 0.30;
 
-    /// <summary>A gap between lines of more than this many body-text heights starts a new paragraph.</summary>
-    public const double ParagraphGapRatio = 0.6;
+    /// <summary>A baseline distance of more than this many times the block's median line pitch starts a new paragraph (needs 3+ lines).</summary>
+    public const double PitchJumpRatio = 1.5;
+
+    /// <summary>Whatever the line pitch, a baseline distance of more than this many font sizes is a paragraph break (double spacing is about 2.2).</summary>
+    public const double AbsolutePitchRatio = 2.5;
+
+    /// <summary>Two heading paragraphs from neighbouring blocks are one wrapped heading when their baselines are at most this many font sizes apart.</summary>
+    public const double HeadingJoinRatio = 1.5;
+
+    /// <summary>True when the baseline distance <paramref name="pitch"/> to the previous line starts a new paragraph.</summary>
+    public static bool StartsNewParagraph(double pitch, double medianPitch, int pitchCount, double fontSize) =>
+        pitch > AbsolutePitchRatio * fontSize || (pitchCount >= 2 && pitch > PitchJumpRatio * medianPitch);
 
     /// <summary>What to do with the text counts of a whole document: <c>null</c> = fine, otherwise the failure message.</summary>
     public static string? RejectReason(long letters, long chars, long junk, int pages)
@@ -90,6 +100,12 @@ internal static class TextRules
     public static bool IsJunk(string text, int index)
     {
         var c = text[index];
+        if (char.IsHighSurrogate(c) && index + 1 < text.Length && char.IsLowSurrogate(text[index + 1]))
+        {
+            // Supplementary private-use planes (U+F0000 and up) are surrogate pairs in UTF-16.
+            return CharUnicodeInfo.GetUnicodeCategory(char.ConvertToUtf32(c, text[index + 1])) == UnicodeCategory.PrivateUse;
+        }
+
         return c == '�' || char.GetUnicodeCategory(c) == UnicodeCategory.PrivateUse;
     }
 
