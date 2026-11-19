@@ -8,6 +8,8 @@ using Xunit;
 
 namespace WheelConvert.Converters.Image.Tests;
 
+// Same collection as ImagesToPdfTests: one test here changes the process-wide Magick resource limits.
+[Collection("MagickLimits")]
 public sealed class ImageConverterTests : IDisposable
 {
     private readonly string _testDir;
