@@ -24,7 +24,7 @@ public sealed class PdfShrinkerTests : IDisposable
     public async Task Shrink_ThreeBigJpegPages_AtLeastHalfSmaller_RendersAndKeepsPageCount()
     {
         var jpeg = ImagePdf.MakeJpeg(4000, 3000);
-        var source = _folder.Path + "\\scan.pdf";
+        var source = Path.Combine(_folder.Path, "scan.pdf");
         using (var document = new PdfDocument())
         {
             for (var i = 0; i < 3; i++)
@@ -64,7 +64,7 @@ public sealed class PdfShrinkerTests : IDisposable
     {
         var gray = ImagePdf.MakeJpeg(2400, 1600, gray: true);
         var small = ImagePdf.MakeJpeg(800, 600);
-        var source = _folder.Path + "\\mixed.pdf";
+        var source = Path.Combine(_folder.Path, "mixed.pdf");
         using (var document = new PdfDocument())
         {
             ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, gray, 2400, 1600, "/DeviceGray"));
@@ -104,7 +104,7 @@ public sealed class PdfShrinkerTests : IDisposable
     [Fact]
     public async Task Shrink_OnlyImageIsCmyk_NoResultWithFormatMessage_NoTempLeft()
     {
-        var source = _folder.Path + "\\cmyk.pdf";
+        var source = Path.Combine(_folder.Path, "cmyk.pdf");
         using (var document = new PdfDocument())
         {
             // The dictionary says DeviceCMYK; the app must skip it on that alone, whatever the bytes are.
@@ -125,7 +125,7 @@ public sealed class PdfShrinkerTests : IDisposable
     [Fact]
     public async Task Shrink_ImageWithSoftMask_IsSkipped()
     {
-        var source = _folder.Path + "\\mask.pdf";
+        var source = Path.Combine(_folder.Path, "mask.pdf");
         using (var document = new PdfDocument())
         {
             ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, ImagePdf.MakeJpeg(3000, 2000), 3000, 2000, addSMask: true));
@@ -144,7 +144,7 @@ public sealed class PdfShrinkerTests : IDisposable
     [Fact]
     public async Task Shrink_OneImageSharedByTenPages_ReplacedOnce_AllPagesRender()
     {
-        var source = _folder.Path + "\\shared.pdf";
+        var source = Path.Combine(_folder.Path, "shared.pdf");
         using (var document = new PdfDocument())
         {
             var image = ImagePdf.AddImage(document, ImagePdf.MakeJpeg(3000, 2000), 3000, 2000);
@@ -203,7 +203,7 @@ public sealed class PdfShrinkerTests : IDisposable
     [Fact]
     public async Task Shrink_KeepsLinkAndBookmark()
     {
-        var source = _folder.Path + "\\linked.pdf";
+        var source = Path.Combine(_folder.Path, "linked.pdf");
         using (var document = new PdfDocument())
         {
             var page = ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, ImagePdf.MakeJpeg(3000, 2000), 3000, 2000));
@@ -238,7 +238,7 @@ public sealed class PdfShrinkerTests : IDisposable
     [Fact]
     public async Task Shrink_OwnerPasswordOnly_PasswordProtected_NeverSavedWithoutRestrictions()
     {
-        var source = _folder.Path + "\\owner.pdf";
+        var source = Path.Combine(_folder.Path, "owner.pdf");
         using (var document = new PdfDocument())
         {
             ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, ImagePdf.MakeJpeg(3000, 2000), 3000, 2000));
@@ -273,7 +273,7 @@ public sealed class PdfShrinkerTests : IDisposable
     public async Task Shrink_CancelBetweenImages_Throws_NoTempLeft_SourceUnchanged()
     {
         var jpeg = ImagePdf.MakeJpeg(2500, 2000);
-        var source = _folder.Path + "\\cancel.pdf";
+        var source = Path.Combine(_folder.Path, "cancel.pdf");
         using (var document = new PdfDocument())
         {
             for (var i = 0; i < 3; i++)
@@ -296,7 +296,7 @@ public sealed class PdfShrinkerTests : IDisposable
     [Fact]
     public async Task Shrink_SourceMissing_SourceMissing()
     {
-        var result = await Run(_folder.Path + "\\gone.pdf");
+        var result = await Run(Path.Combine(_folder.Path, "gone.pdf"));
 
         Assert.Equal(ConversionError.SourceMissing, result.Error);
     }
@@ -330,7 +330,7 @@ public sealed class PdfShrinkerTests : IDisposable
 
     private string BigScan(string name)
     {
-        var path = _folder.Path + "\\" + name;
+        var path = Path.Combine(_folder.Path, name);
         using var document = new PdfDocument();
         ImagePdf.AddPageWith(document, ImagePdf.AddImage(document, ImagePdf.MakeJpeg(3000, 2000), 3000, 2000));
         document.Save(path);
