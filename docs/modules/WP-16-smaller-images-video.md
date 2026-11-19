@@ -36,7 +36,7 @@ One fixed preset that makes a photo or video small enough for email, WhatsApp an
 |---|---|---|---|---|
 | 1 | Agent | 4000 × 3000 JPEG q95 | 1920 × 1440 JPEG, smaller, upright, no GPS | PASS (ImageShrinkerTests.Test1) |
 | 2 | Agent | 800 × 600 JPEG q60 | Not enlarged; `NoResult` if not 5 % smaller, no temp left | PASS (Test2: NoResult, no temp, source untouched) |
-| 3 | Agent | HEIC sample | `.jpg` output | PASS for AVIF (same code path); real HEIC NEEDS USER (this Magick build cannot write HEIC, so no sample can be generated) |
+| 3 | Agent | HEIC sample | `.jpg` output | NEEDS USER (no HEIC sample can be made or downloaded here; AVIF covers the shared path after decoding; HEIC decode via libheif unverified — check with an iPhone HEIC in test 9) |
 | 4 | Agent | PNG with alpha | `.png`, alpha kept | PASS (Test4: png, alpha kept) |
 | 5 | Agent | Animated GIF | `Unsupported` | PASS (Test5) |
 | 6 | Agent (real FFmpeg) | 1920 × 1080 test video | 1280 × 720 MP4 | PASS (real FFmpeg) |
